@@ -489,12 +489,21 @@ async function getTokenPrice() {
     }
 }
 
-// Fallback simulation mode
+// Fallback simulation mode (also used as primary mode when APIs fail)
 function startSimulationMode() {
-    updateMarketCap();
+    console.log('Starting simulation mode');
+    updateUIStatus('Simulation Mode', 'Simulation Mode');
+    
+    // Clear any existing interval first
     if (updateInterval) {
         clearInterval(updateInterval);
+        updateInterval = null;
     }
+    
+    // Start updating immediately
+    updateMarketCap();
+    
+    // Set up interval for continuous updates
     updateInterval = setInterval(() => {
         updateMarketCap();
     }, 5000);

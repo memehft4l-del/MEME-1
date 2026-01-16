@@ -157,7 +157,9 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase - Load with error handling (optional, won't break site if it fails) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" 
+            onerror="console.warn('Supabase CDN failed to load, site will work without it')"></script>
     <!-- Inject environment variables from Vercel -->
     <script>
         // Vercel environment variables (set in Vercel dashboard)

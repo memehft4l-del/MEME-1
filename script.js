@@ -868,8 +868,6 @@ function onWindowResize() {
 }
 
 
-// Welcome modal
-
 // Initialize Supabase client
 function initSupabase() {
     // Check if supabase library is loaded

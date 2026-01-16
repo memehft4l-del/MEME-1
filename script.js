@@ -340,21 +340,20 @@ function initUI() {
 }
 
 // Market cap updates with real API
-async function startMarketCapUpdates() {
+function startMarketCapUpdates() {
     console.log('Starting market cap updates...');
-    updateUIStatus('Connecting...', 'Connecting...');
     
-    // Always start with simulation mode immediately for instant data
+    // ALWAYS start simulation mode FIRST - this ensures data shows immediately
+    console.log('Starting simulation mode immediately...');
     startSimulationMode();
     
     // If no token address is set, just use simulation
     if (!TOKEN_MINT_ADDRESS) {
         console.warn('Token mint address not set. Using simulation mode only.');
-        updateUIStatus('Simulation Mode', 'Simulation Mode');
         return;
     }
     
-    // Try to fetch real data in background (non-blocking)
+    // Try to fetch real data in background (non-blocking, doesn't stop simulation)
     setTimeout(async () => {
         try {
             console.log('Attempting to fetch real token data...');
@@ -362,9 +361,9 @@ async function startMarketCapUpdates() {
         } catch (error) {
             console.error('Background fetch failed, simulation continues:', error);
         }
-    }, 1000);
+    }, 2000);
     
-    // Try to fetch real data every 5 seconds (but simulation keeps running)
+    // Try to fetch real data every 5 seconds (simulation keeps running in parallel)
     setInterval(async () => {
         try {
             await fetchTokenData();
@@ -498,10 +497,9 @@ async function getTokenPrice() {
     }
 }
 
-// Fallback simulation mode (also used as primary mode when APIs fail)
+// Simulation mode (primary mode - always runs first)
 function startSimulationMode() {
-    console.log('Starting simulation mode');
-    updateUIStatus('Simulation Mode', 'Simulation Mode');
+    console.log('🎮 Starting simulation mode');
     
     // Clear any existing interval first
     if (updateInterval) {
@@ -509,51 +507,93 @@ function startSimulationMode() {
         updateInterval = null;
     }
     
-    // Start updating immediately
-    updateMarketCap();
+    // Update status
+    updateUIStatus('Simulation Mode', 'Simulation Mode');
+    
+    // Start updating immediately - this is critical!
+    console.log('Calling updateMarketCap() immediately...');
+    try {
+        updateMarketCap();
+        console.log('✅ updateMarketCap() completed');
+    } catch (error) {
+        console.error('❌ updateMarketCap() failed:', error);
+    }
     
     // Set up interval for continuous updates
     updateInterval = setInterval(() => {
-        updateMarketCap();
+        try {
+            updateMarketCap();
+        } catch (error) {
+            console.error('Error in updateMarketCap interval:', error);
+        }
     }, 5000);
+    
+    console.log('✅ Simulation mode started, interval set');
 }
 
 function updateMarketCap() {
-    // Simulate market cap (fallback when API is not available)
-    const baseMC = 500000; // Base market cap
-    const fluctuation = (Math.random() - 0.5) * 200000; // Random fluctuation
-    const trend = Math.sin(Date.now() / 100000) * 100000; // Sinusoidal trend
-    
-    previousMarketCap = currentMarketCap;
-    currentMarketCap = Math.max(0, baseMC + fluctuation + trend);
-    
-    // Update UI
-    updateMarketCapDisplay(currentMarketCap);
-    
-    // Calculate price (mock calculation)
-    const price = currentMarketCap / 1000000000; // Assuming 1B supply
-    updatePriceDisplay(price);
-    
-    // Update volume (mock)
-    const volume24h = currentMarketCap * 0.1 * (0.5 + Math.random());
-    updateVolumeDisplay(volume24h);
-    
-    // Calculate 24h change
-    const change = previousMarketCap > 0 
-        ? ((currentMarketCap - previousMarketCap) / previousMarketCap * 100)
-        : 0;
-    updateChangeDisplay(change);
-    
-    // Update size
-    const sizeInCm = updatePenisSize(currentMarketCap);
-    updateSizeDisplay(sizeInCm);
-    
-    // Update vitals (using mock volume for simulation)
-    const mockVolume = currentMarketCap * 0.1 * (0.5 + Math.random());
-    updateVitals(currentMarketCap, change, mockVolume);
-    
-    // Update last update time
-    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    try {
+        console.log('📊 updateMarketCap() called');
+        
+        // Simulate market cap (fallback when API is not available)
+        const baseMC = 500000; // Base market cap
+        const fluctuation = (Math.random() - 0.5) * 200000; // Random fluctuation
+        const trend = Math.sin(Date.now() / 100000) * 100000; // Sinusoidal trend
+        
+        previousMarketCap = currentMarketCap;
+        currentMarketCap = Math.max(0, baseMC + fluctuation + trend);
+        
+        console.log('Calculated market cap:', currentMarketCap);
+        
+        // Update UI - wrap each in try/catch to prevent one failure from stopping all
+        try {
+            updateMarketCapDisplay(currentMarketCap);
+        } catch (e) { console.error('Error updating market cap display:', e); }
+        
+        // Calculate price (mock calculation)
+        const price = currentMarketCap / 1000000000; // Assuming 1B supply
+        try {
+            updatePriceDisplay(price);
+        } catch (e) { console.error('Error updating price display:', e); }
+        
+        // Update volume (mock)
+        const volume24h = currentMarketCap * 0.1 * (0.5 + Math.random());
+        try {
+            updateVolumeDisplay(volume24h);
+        } catch (e) { console.error('Error updating volume display:', e); }
+        
+        // Calculate 24h change
+        const change = previousMarketCap > 0 
+            ? ((currentMarketCap - previousMarketCap) / previousMarketCap * 100)
+            : 0;
+        try {
+            updateChangeDisplay(change);
+        } catch (e) { console.error('Error updating change display:', e); }
+        
+        // Update size
+        const sizeInCm = updatePenisSize(currentMarketCap);
+        try {
+            updateSizeDisplay(sizeInCm);
+        } catch (e) { console.error('Error updating size display:', e); }
+        
+        // Update vitals (using mock volume for simulation)
+        const mockVolume = currentMarketCap * 0.1 * (0.5 + Math.random());
+        try {
+            updateVitals(currentMarketCap, change, mockVolume);
+        } catch (e) { console.error('Error updating vitals:', e); }
+        
+        // Update last update time
+        try {
+            const lastUpdateEl = document.getElementById('lastUpdate');
+            if (lastUpdateEl) {
+                lastUpdateEl.textContent = new Date().toLocaleTimeString();
+            }
+        } catch (e) { console.error('Error updating last update time:', e); }
+        
+        console.log('✅ updateMarketCap() completed successfully');
+    } catch (error) {
+        console.error('❌ Fatal error in updateMarketCap():', error);
+    }
 }
 
 function updateMarketCapDisplay(mc) {

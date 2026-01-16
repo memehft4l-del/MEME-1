@@ -111,3 +111,7 @@ The footer links (DexScreener, Bags, Twitter) are managed through Supabase and c
 - Token address can be set via UI even without Supabase
 - All data updates every 5 seconds automatically
 
+## Custom Domain Setup
+
+If you have a custom domain (like bobo.capital), see `DOMAIN_SETUP.md` for instructions on configuring it in Vercel.
+

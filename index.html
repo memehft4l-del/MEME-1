@@ -167,7 +167,31 @@
         window.SUPABASE_URL = 'https://cwihyzlbsbbpchkheito.supabase.co';
         window.SUPABASE_ANON_KEY = 'sb_publishable_Y_MINoKzOLp1DBG23X0HZg_NR9gXzSk';
     </script>
+    <script>
+        // Test if JavaScript is working
+        console.log('✅ HTML loaded, JavaScript is executing');
+        console.log('✅ Script.js will load next');
+    </script>
     <script src="script.js"></script>
+    <script>
+        // Verify script.js loaded
+        console.log('✅ All scripts loaded');
+        // Force start if DOMContentLoaded didn't fire
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            console.log('⚠️ DOM already loaded, checking if initialization happened...');
+            setTimeout(() => {
+                const statusEl = document.getElementById('status');
+                if (statusEl && statusEl.textContent === 'Connecting...') {
+                    console.error('❌ Site stuck on Connecting... - forcing simulation mode');
+                    if (typeof startSimulationMode === 'function') {
+                        startSimulationMode();
+                    } else {
+                        console.error('❌ startSimulationMode function not found!');
+                    }
+                }
+            }, 2000);
+        }
+    </script>
 </body>
 </html>
 

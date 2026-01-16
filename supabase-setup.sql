@@ -26,15 +26,27 @@ ON CONFLICT (id) DO NOTHING;
 -- Enable Row Level Security (RLS)
 ALTER TABLE config ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to avoid conflicts when re-running)
+DROP POLICY IF EXISTS "Allow public read access" ON config;
+DROP POLICY IF EXISTS "Allow authenticated update" ON config;
+DROP POLICY IF EXISTS "Allow public write access" ON config;
+
 -- Create policy to allow public read access (for the website)
 CREATE POLICY "Allow public read access" ON config
     FOR SELECT
     USING (true);
 
 -- Create policy to allow authenticated users to update (for dashboard)
+-- Note: If you want public write access (no auth required), use the policy below instead
 CREATE POLICY "Allow authenticated update" ON config
     FOR UPDATE
     USING (auth.role() = 'authenticated');
+
+-- Alternative: Uncomment below for public write access (no authentication required)
+-- CREATE POLICY "Allow public write access" ON config
+--     FOR ALL
+--     USING (true)
+--     WITH CHECK (true);
 
 -- Create a function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -44,6 +56,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ language 'plpgsql';
+
+-- Drop trigger if exists (to avoid conflicts when re-running)
+DROP TRIGGER IF EXISTS update_config_updated_at ON config;
 
 -- Create trigger to update updated_at on config table
 CREATE TRIGGER update_config_updated_at BEFORE UPDATE ON config

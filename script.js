@@ -354,13 +354,7 @@ function updatePenisSize(marketCap) {
 
 // Initialize UI event handlers
 function initUI() {
-    // Modal close
-    document.getElementById('closeModal').addEventListener('click', hideWelcomeModal);
-    document.getElementById('welcomeModal').addEventListener('click', (e) => {
-        if (e.target.id === 'welcomeModal') {
-            hideWelcomeModal();
-        }
-    });
+    // No UI handlers needed currently
 }
 
 // Market cap updates with real API
@@ -875,13 +869,6 @@ function onWindowResize() {
 
 
 // Welcome modal
-function showWelcomeModal() {
-    document.getElementById('welcomeModal').classList.add('show');
-}
-
-function hideWelcomeModal() {
-    document.getElementById('welcomeModal').classList.remove('show');
-}
 
 // Initialize Supabase client
 function initSupabase() {

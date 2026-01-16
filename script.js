@@ -58,9 +58,16 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('❌ Market cap updates failed:', error);
     }
     
-    // Initialize Supabase in background (non-blocking)
-    initSupabase();
-    loadConfigFromSupabase();
+    // Initialize Supabase in background (non-blocking, won't break site if it fails)
+    setTimeout(() => {
+        try {
+            initSupabase();
+            loadConfigFromSupabase();
+        } catch (error) {
+            console.error('Supabase initialization error (non-critical):', error);
+            setDefaultLinks();
+        }
+    }, 100);
     
     // Set contract address placeholder (will be updated from dashboard)
     const contractAddressEl = document.getElementById('contractAddress');
@@ -798,16 +805,25 @@ function hideWelcomeModal() {
 
 // Initialize Supabase client
 function initSupabase() {
+    // Check if supabase library is loaded
+    if (typeof supabase === 'undefined') {
+        console.warn('Supabase library not loaded. Site will work without Supabase.');
+        setDefaultLinks();
+        return;
+    }
+    
     if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL' && 
         SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('Supabase initialized');
+            console.log('✅ Supabase initialized');
         } catch (error) {
-            console.error('Error initializing Supabase:', error);
+            console.error('❌ Error initializing Supabase:', error);
+            setDefaultLinks();
         }
     } else {
         console.warn('Supabase credentials not configured. Using default links.');
+        setDefaultLinks();
     }
 }
 

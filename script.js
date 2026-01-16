@@ -769,9 +769,16 @@ function formatCurrency(value) {
 }
 
 function updateUIStatus(status, newStatus) {
-    const statusElement = document.getElementById('status');
-    if (statusElement) {
-        statusElement.textContent = newStatus || status;
+    try {
+        const statusElement = document.getElementById('status');
+        if (statusElement) {
+            statusElement.textContent = newStatus || status;
+            console.log('📝 Status updated to:', newStatus || status);
+        } else {
+            console.warn('⚠️ Status element not found');
+        }
+    } catch (error) {
+        console.error('❌ Error updating status:', error);
     }
 }
 

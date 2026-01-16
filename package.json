@@ -1,0 +1,10 @@
+{
+  "name": "bobo-token-website",
+  "version": "1.0.0",
+  "description": "BOBO memecoin website with 3D character",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {}
+}
+

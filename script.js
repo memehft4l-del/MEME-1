@@ -11,8 +11,10 @@ let updateInterval;
 const HELIUS_API_URL = 'https://mainnet.helius-rpc.com/?api-key=5b8196dc-7a4b-43fa-80f0-8f285ccf318b';
 
 // Supabase Configuration
-const SUPABASE_URL = 'https://cwihyzlbsbbpchkheito.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_Y_MINoKzOLp1DBG23X0HZg_NR9gXzSk';
+// These can be overridden by environment variables in Vercel
+// For Vercel: Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in environment variables
+const SUPABASE_URL = window.SUPABASE_URL || 'https://cwihyzlbsbbpchkheito.supabase.co';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'sb_publishable_Y_MINoKzOLp1DBG23X0HZg_NR9gXzSk';
 let supabaseClient = null;
 
 // Token mint address (can be set via UI or here)

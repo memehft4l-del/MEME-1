@@ -31,11 +31,12 @@ let socialLinks = {
     twitter: ''
 };
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize function - can be called multiple times safely
+function initializeApp() {
     console.log('🚀 BOBO Website Initializing...');
     console.log('Token Address:', TOKEN_MINT_ADDRESS);
     console.log('THREE.js available:', typeof THREE !== 'undefined');
+    console.log('Document ready state:', document.readyState);
     
     // Check if required elements exist
     const canvas = document.getElementById('pepe-canvas');
@@ -43,7 +44,17 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Canvas found:', !!canvas);
     console.log('Container found:', !!container);
     
-    // Initialize scene first
+    // CRITICAL: Start market cap updates FIRST (this shows data immediately)
+    try {
+        console.log('🔥 Starting market cap updates FIRST...');
+        startMarketCapUpdates();
+        console.log('✅ Market cap updates started');
+    } catch (error) {
+        console.error('❌ Market cap updates failed:', error);
+        console.error('Error stack:', error.stack);
+    }
+    
+    // Initialize scene
     try {
         initScene();
         console.log('✅ Scene initialized');
@@ -52,19 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error stack:', error.stack);
     }
     
+    // Initialize UI
     try {
         initUI();
         console.log('✅ UI initialized');
     } catch (error) {
         console.error('❌ UI initialization failed:', error);
-        console.error('Error stack:', error.stack);
-    }
-    
-    try {
-        startMarketCapUpdates();
-        console.log('✅ Market cap updates started');
-    } catch (error) {
-        console.error('❌ Market cap updates failed:', error);
         console.error('Error stack:', error.stack);
     }
     
@@ -96,7 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
         showWelcomeModal();
         localStorage.setItem('bobo_welcome_seen', 'true');
     }
-});
+}
+
+// Initialize immediately if DOM is already loaded, otherwise wait
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    // DOM is already loaded, initialize immediately
+    console.log('⚡ DOM already loaded, initializing immediately...');
+    setTimeout(initializeApp, 0);
+}
 
 // Initialize Three.js scene
 function initScene() {

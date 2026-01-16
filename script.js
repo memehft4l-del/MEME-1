@@ -360,7 +360,21 @@ function updatePenisSize(marketCap) {
 
 // Initialize UI event handlers
 function initUI() {
-    // No UI handlers needed currently
+    // Modal close
+    const closeModalBtn = document.getElementById('closeModal');
+    const welcomeModal = document.getElementById('welcomeModal');
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', hideWelcomeModal);
+    }
+    
+    if (welcomeModal) {
+        welcomeModal.addEventListener('click', (e) => {
+            if (e.target.id === 'welcomeModal') {
+                hideWelcomeModal();
+            }
+        });
+    }
 }
 
 // Market cap updates with real API

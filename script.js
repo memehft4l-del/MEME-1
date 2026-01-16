@@ -321,65 +321,54 @@ function initUI() {
 
 // Market cap updates with real API
 async function startMarketCapUpdates() {
+    console.log('Starting market cap updates...');
     updateUIStatus('Connecting...', 'Connecting...');
     
-    // If no token address is set, use simulation mode
+    // Always start with simulation mode immediately for instant data
+    startSimulationMode();
+    
+    // If no token address is set, just use simulation
     if (!TOKEN_MINT_ADDRESS) {
-        console.warn('Token mint address not set. Using simulation mode.');
+        console.warn('Token mint address not set. Using simulation mode only.');
         updateUIStatus('Simulation Mode', 'Simulation Mode');
-        startSimulationMode();
         return;
     }
     
-    // Start simulation mode immediately (so data shows right away)
-    startSimulationMode();
-    
-    // Try to fetch real data in background
-    // Use Promise.race to timeout after 3 seconds
-    const fetchPromise = fetchTokenData();
-    const timeoutPromise = new Promise((resolve) => {
-        setTimeout(() => resolve(null), 3000);
-    });
-    
-    try {
-        await Promise.race([fetchPromise, timeoutPromise]);
-        // If fetch succeeded, it will update the data
-        // If it timed out or failed, simulation mode continues
-    } catch (error) {
-        console.error('Initial fetch failed, continuing with simulation:', error);
-    }
-    
-    // Update every 5 seconds - try real API first, fallback to simulation
-    updateInterval = setInterval(async () => {
+    // Try to fetch real data in background (non-blocking)
+    setTimeout(async () => {
         try {
-            const result = await Promise.race([
-                fetchTokenData(),
-                new Promise((resolve) => setTimeout(() => resolve(null), 2000))
-            ]);
-            if (!result) {
-                // Timeout or failure - simulation mode handles updates
-                console.log('API timeout, using simulation data');
-            }
+            console.log('Attempting to fetch real token data...');
+            await fetchTokenData();
         } catch (error) {
-            console.error('Fetch error:', error);
-            // Simulation mode continues running
+            console.error('Background fetch failed, simulation continues:', error);
+        }
+    }, 1000);
+    
+    // Try to fetch real data every 5 seconds (but simulation keeps running)
+    setInterval(async () => {
+        try {
+            await fetchTokenData();
+        } catch (error) {
+            console.error('Periodic fetch error:', error);
+            // Simulation mode continues regardless
         }
     }, 5000);
 }
 
 async function fetchTokenData() {
     try {
-        updateUIStatus('Fetching...', 'Fetching data...');
+        console.log('Fetching token data for:', TOKEN_MINT_ADDRESS);
         
         // Fetch token supply from Helius
         const supply = await getTokenSupply();
         if (supply) {
             tokenSupply = supply;
+            console.log('Token supply:', supply);
         }
         
         // Fetch price from DexScreener (free API, no key needed)
         const priceData = await getTokenPrice();
-        if (priceData) {
+        if (priceData && priceData.price > 0) {
             tokenPrice = priceData.price;
             const volume24h = priceData.volume24h || 0;
             const priceChange24h = priceData.priceChange24h || 0;
@@ -388,7 +377,9 @@ async function fetchTokenData() {
             previousMarketCap = currentMarketCap;
             currentMarketCap = (tokenSupply * tokenPrice) || 0;
             
-            // Update UI
+            console.log('Real data fetched - MC:', currentMarketCap, 'Price:', tokenPrice);
+            
+            // Update UI with real data
             updateMarketCapDisplay(currentMarketCap);
             updatePriceDisplay(tokenPrice);
             updateVolumeDisplay(volume24h);
@@ -403,24 +394,22 @@ async function fetchTokenData() {
             
             // Update contract address display (full address)
             if (TOKEN_MINT_ADDRESS) {
-                document.getElementById('contractAddress').textContent = TOKEN_MINT_ADDRESS;
+                const caEl = document.getElementById('contractAddress');
+                if (caEl) {
+                    caEl.textContent = TOKEN_MINT_ADDRESS;
+                }
             }
             
             updateUIStatus('Connected', 'Connected');
+            return true; // Success
         } else {
-            // Fallback to simulation if API fails
-            console.warn('API fetch failed, using simulation');
-            startSimulationMode();
+            console.warn('No price data available');
+            return false;
         }
-        
-        // Update last update time
-        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
         
     } catch (error) {
         console.error('Error fetching token data:', error);
-        updateUIStatus('Error', 'Connection Error');
-        // Fallback to simulation
-        startSimulationMode();
+        return false;
     }
 }
 

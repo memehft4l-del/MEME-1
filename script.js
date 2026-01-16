@@ -358,25 +358,39 @@ function initUI() {
 
 // Market cap updates with real API
 function startMarketCapUpdates() {
-    console.log('Starting market cap updates...');
+    console.log('📈 Starting market cap updates...');
     
-    // ALWAYS start simulation mode FIRST - this ensures data shows immediately
-    console.log('Starting simulation mode immediately...');
-    startSimulationMode();
+    // CRITICAL: Start simulation mode IMMEDIATELY - don't wait for anything
+    // This ensures data shows right away
+    try {
+        console.log('🎮 Starting simulation mode immediately...');
+        startSimulationMode();
+        console.log('✅ Simulation mode started successfully');
+    } catch (error) {
+        console.error('❌ Failed to start simulation mode:', error);
+        // Try again after a short delay
+        setTimeout(() => {
+            try {
+                startSimulationMode();
+            } catch (e) {
+                console.error('❌ Retry failed:', e);
+            }
+        }, 500);
+    }
     
     // If no token address is set, just use simulation
     if (!TOKEN_MINT_ADDRESS) {
-        console.warn('Token mint address not set. Using simulation mode only.');
+        console.warn('⚠️ Token mint address not set. Using simulation mode only.');
         return;
     }
     
     // Try to fetch real data in background (non-blocking, doesn't stop simulation)
     setTimeout(async () => {
         try {
-            console.log('Attempting to fetch real token data...');
+            console.log('🌐 Attempting to fetch real token data...');
             await fetchTokenData();
         } catch (error) {
-            console.error('Background fetch failed, simulation continues:', error);
+            console.error('⚠️ Background fetch failed, simulation continues:', error);
         }
     }, 2000);
     
@@ -385,7 +399,7 @@ function startMarketCapUpdates() {
         try {
             await fetchTokenData();
         } catch (error) {
-            console.error('Periodic fetch error:', error);
+            console.error('⚠️ Periodic fetch error:', error);
             // Simulation mode continues regardless
         }
     }, 5000);
@@ -524,16 +538,29 @@ function startSimulationMode() {
         updateInterval = null;
     }
     
-    // Update status
-    updateUIStatus('Simulation Mode', 'Simulation Mode');
+    // Update status FIRST so user sees something
+    try {
+        updateUIStatus('Simulation Mode', 'Simulation Mode');
+    } catch (e) {
+        console.error('Error updating status:', e);
+    }
     
     // Start updating immediately - this is critical!
-    console.log('Calling updateMarketCap() immediately...');
+    console.log('📊 Calling updateMarketCap() immediately...');
     try {
         updateMarketCap();
-        console.log('✅ updateMarketCap() completed');
+        console.log('✅ updateMarketCap() completed successfully');
     } catch (error) {
         console.error('❌ updateMarketCap() failed:', error);
+        console.error('Error details:', error.message, error.stack);
+        // Try again after a short delay
+        setTimeout(() => {
+            try {
+                updateMarketCap();
+            } catch (e) {
+                console.error('❌ Retry also failed:', e);
+            }
+        }, 1000);
     }
     
     // Set up interval for continuous updates
@@ -541,16 +568,16 @@ function startSimulationMode() {
         try {
             updateMarketCap();
         } catch (error) {
-            console.error('Error in updateMarketCap interval:', error);
+            console.error('❌ Error in updateMarketCap interval:', error);
         }
     }, 5000);
     
-    console.log('✅ Simulation mode started, interval set');
+    console.log('✅ Simulation mode started, interval set to 5 seconds');
 }
 
 function updateMarketCap() {
     try {
-        console.log('📊 updateMarketCap() called');
+        console.log('📊 updateMarketCap() called at', new Date().toLocaleTimeString());
         
         // Simulate market cap (fallback when API is not available)
         const baseMC = 500000; // Base market cap
@@ -560,24 +587,33 @@ function updateMarketCap() {
         previousMarketCap = currentMarketCap;
         currentMarketCap = Math.max(0, baseMC + fluctuation + trend);
         
-        console.log('Calculated market cap:', currentMarketCap);
+        console.log('💰 Calculated market cap:', currentMarketCap.toLocaleString());
         
         // Update UI - wrap each in try/catch to prevent one failure from stopping all
         try {
             updateMarketCapDisplay(currentMarketCap);
-        } catch (e) { console.error('Error updating market cap display:', e); }
+            console.log('✅ Market cap display updated');
+        } catch (e) { 
+            console.error('❌ Error updating market cap display:', e);
+        }
         
         // Calculate price (mock calculation)
         const price = currentMarketCap / 1000000000; // Assuming 1B supply
         try {
             updatePriceDisplay(price);
-        } catch (e) { console.error('Error updating price display:', e); }
+            console.log('✅ Price display updated');
+        } catch (e) { 
+            console.error('❌ Error updating price display:', e);
+        }
         
         // Update volume (mock)
         const volume24h = currentMarketCap * 0.1 * (0.5 + Math.random());
         try {
             updateVolumeDisplay(volume24h);
-        } catch (e) { console.error('Error updating volume display:', e); }
+            console.log('✅ Volume display updated');
+        } catch (e) { 
+            console.error('❌ Error updating volume display:', e);
+        }
         
         // Calculate 24h change
         const change = previousMarketCap > 0 
@@ -585,31 +621,46 @@ function updateMarketCap() {
             : 0;
         try {
             updateChangeDisplay(change);
-        } catch (e) { console.error('Error updating change display:', e); }
+            console.log('✅ Change display updated');
+        } catch (e) { 
+            console.error('❌ Error updating change display:', e);
+        }
         
         // Update size
         const sizeInCm = updatePenisSize(currentMarketCap);
         try {
             updateSizeDisplay(sizeInCm);
-        } catch (e) { console.error('Error updating size display:', e); }
+            console.log('✅ Size display updated:', sizeInCm, 'cm');
+        } catch (e) { 
+            console.error('❌ Error updating size display:', e);
+        }
         
         // Update vitals (using mock volume for simulation)
         const mockVolume = currentMarketCap * 0.1 * (0.5 + Math.random());
         try {
             updateVitals(currentMarketCap, change, mockVolume);
-        } catch (e) { console.error('Error updating vitals:', e); }
+            console.log('✅ Vitals updated');
+        } catch (e) { 
+            console.error('❌ Error updating vitals:', e);
+        }
         
         // Update last update time
         try {
             const lastUpdateEl = document.getElementById('lastUpdate');
             if (lastUpdateEl) {
                 lastUpdateEl.textContent = new Date().toLocaleTimeString();
+            } else {
+                console.warn('⚠️ lastUpdate element not found');
             }
-        } catch (e) { console.error('Error updating last update time:', e); }
+        } catch (e) { 
+            console.error('❌ Error updating last update time:', e);
+        }
         
-        console.log('✅ updateMarketCap() completed successfully');
+        console.log('✅✅✅ updateMarketCap() completed successfully ✅✅✅');
     } catch (error) {
-        console.error('❌ Fatal error in updateMarketCap():', error);
+        console.error('❌❌❌ FATAL ERROR in updateMarketCap():', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
     }
 }
 

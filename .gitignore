@@ -1,0 +1,31 @@
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables (if you add any)
+.env
+.env.local
+
+# Node modules (if you add any dependencies later)
+node_modules/
+
+# Build files (if you add any build process)
+dist/
+build/
+

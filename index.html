@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOBO - The Market Cap Memecoin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Stats -->
+        <div class="header-stats">
+            <div class="stat-card">
+                <div class="stat-label">TOKEN</div>
+                <div class="stat-value" id="tokenPrice">$0.000</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">MARKET CAP</div>
+                <div class="stat-value" id="marketCap">$0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">24H CHANGE</div>
+                <div class="stat-value" id="change24h">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">SIZE</div>
+                <div class="stat-value" id="currentSize">-- cm</div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Left Panel -->
+            <div class="left-panel">
+                <!-- Size Stats -->
+                <div class="panel-section">
+                    <h3>SIZE STATS</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-name">Current Size</span>
+                            <span class="stat-value-small" id="currentSizeDetail">-- cm</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-name">Market Cap</span>
+                            <span class="stat-value-small" id="marketCapDetail">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-name">Growth</span>
+                            <span class="stat-value-small" id="growth">--%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-name">Last Update</span>
+                            <span class="stat-value-small" id="lastUpdate">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-name">Next Update</span>
+                            <span class="stat-value-small" id="nextUpdate">5s</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-name">Status</span>
+                            <span class="stat-value-small" id="status">Connecting...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOBO Vitals -->
+                <div class="panel-section">
+                    <h3>🥒 BOBO VITALS</h3>
+                    <div class="vitals-grid">
+                        <div class="vital-item">
+                            <span class="vital-name">Ego Level</span>
+                            <div class="vital-bar">
+                                <div class="vital-fill" id="egoBar" style="width: 0%"></div>
+                            </div>
+                            <span class="vital-value" id="egoLevel">0%</span>
+                        </div>
+                        <div class="vital-item">
+                            <span class="vital-name">Confidence</span>
+                            <span class="vital-value" id="confidence">LOW</span>
+                        </div>
+                        <div class="vital-item">
+                            <span class="vital-name">Horniness</span>
+                            <div class="horniness-indicator" id="horniness">
+                                <span class="horn-dot">⚪</span>
+                                <span class="horn-dot">⚪</span>
+                                <span class="horn-dot">⚪</span>
+                                <span class="horn-dot">⚪</span>
+                                <span class="horn-dot">⚪</span>
+                            </div>
+                        </div>
+                        <div class="vital-item">
+                            <span class="vital-name">Flex Power</span>
+                            <span class="vital-value" id="flexPower">WEAK</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Center 3D Canvas -->
+            <div class="center-panel">
+                <div id="canvas-container">
+                    <canvas id="pepe-canvas"></canvas>
+                </div>
+                <div class="canvas-controls">
+                    <p class="control-hint">Click and drag to rotate • Scroll to zoom</p>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="right-panel">
+                <!-- Token Info -->
+                <div class="panel-section">
+                    <h3>TOKEN INFO</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">24h Volume</span>
+                            <span class="info-value" id="volume24h">--</span>
+                        </div>
+                        <div class="info-item info-item-ca">
+                            <span class="info-label">CA:</span>
+                            <span class="info-value" id="contractAddress">--</span>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+        
+        <!-- Footer Links -->
+        <div class="footer-links">
+            <a href="#" id="dexscreenerLink" class="footer-link" target="_blank">
+                <span>📊</span> DexScreener
+            </a>
+            <a href="#" id="bagsLink" class="footer-link" target="_blank">
+                <span>💼</span> Bags
+            </a>
+            <a href="#" id="twitterLink" class="footer-link" target="_blank">
+                <span>🐦</span> Twitter
+            </a>
+        </div>
+    </div>
+
+    <!-- Welcome Modal -->
+    <div id="welcomeModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">X</button>
+            <h2>🥒 WELCOME</h2>
+            <p>This is BOBO - whose penis size automatically adjusts based on the token's Market Cap!</p>
+            <p><strong>Higher MC = Bigger Penis</strong></p>
+            <p><strong>Lower MC = Smaller Penis</strong></p>
+            <p>Watch the character grow in real-time as the market cap changes!</p>
+            <p><em>Click and drag to rotate • Scroll to zoom</em></p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+

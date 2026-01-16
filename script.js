@@ -887,6 +887,20 @@ function onWindowResize() {
     renderer.setSize(container.clientWidth, container.clientHeight);
 }
 
+// Welcome modal
+function showWelcomeModal() {
+    const modal = document.getElementById('welcomeModal');
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+function hideWelcomeModal() {
+    const modal = document.getElementById('welcomeModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
 
 // Initialize Supabase client
 function initSupabase() {

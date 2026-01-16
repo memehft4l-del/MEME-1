@@ -331,12 +331,39 @@ async function startMarketCapUpdates() {
         return;
     }
     
-    // Fetch initial data
-    await fetchTokenData();
+    // Start simulation mode immediately (so data shows right away)
+    startSimulationMode();
     
-    // Update every 5 seconds
+    // Try to fetch real data in background
+    // Use Promise.race to timeout after 3 seconds
+    const fetchPromise = fetchTokenData();
+    const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve(null), 3000);
+    });
+    
+    try {
+        await Promise.race([fetchPromise, timeoutPromise]);
+        // If fetch succeeded, it will update the data
+        // If it timed out or failed, simulation mode continues
+    } catch (error) {
+        console.error('Initial fetch failed, continuing with simulation:', error);
+    }
+    
+    // Update every 5 seconds - try real API first, fallback to simulation
     updateInterval = setInterval(async () => {
-        await fetchTokenData();
+        try {
+            const result = await Promise.race([
+                fetchTokenData(),
+                new Promise((resolve) => setTimeout(() => resolve(null), 2000))
+            ]);
+            if (!result) {
+                // Timeout or failure - simulation mode handles updates
+                console.log('API timeout, using simulation data');
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            // Simulation mode continues running
+        }
     }, 5000);
 }
 

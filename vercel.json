@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "node build.js",
   "builds": [
     {
       "src": "index.html",

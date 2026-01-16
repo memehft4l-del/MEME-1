@@ -33,10 +33,30 @@ let socialLinks = {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 BOBO Website Initializing...');
+    console.log('Token Address:', TOKEN_MINT_ADDRESS);
+    
     // Initialize scene first
-    initScene();
-    initUI();
-    startMarketCapUpdates();
+    try {
+        initScene();
+        console.log('✅ Scene initialized');
+    } catch (error) {
+        console.error('❌ Scene initialization failed:', error);
+    }
+    
+    try {
+        initUI();
+        console.log('✅ UI initialized');
+    } catch (error) {
+        console.error('❌ UI initialization failed:', error);
+    }
+    
+    try {
+        startMarketCapUpdates();
+        console.log('✅ Market cap updates started');
+    } catch (error) {
+        console.error('❌ Market cap updates failed:', error);
+    }
     
     // Initialize Supabase in background (non-blocking)
     initSupabase();

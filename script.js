@@ -94,12 +94,6 @@ function initializeApp() {
         }
     }
     
-    // Show welcome modal on first visit
-    const hasSeenWelcome = localStorage.getItem('bobo_welcome_seen');
-    if (!hasSeenWelcome) {
-        showWelcomeModal();
-        localStorage.setItem('bobo_welcome_seen', 'true');
-    }
 }
 
 // Initialize immediately if DOM is already loaded, otherwise wait

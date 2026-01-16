@@ -59,6 +59,34 @@ python3 -m http.server 8000
 
 Then visit `http://localhost:8000`
 
+## GitHub Hosting (GitHub Pages)
+
+### Deploy to GitHub Pages:
+
+1. **Create a GitHub repository:**
+   - Go to [github.com](https://github.com) and create a new repository
+   - Name it something like `bobo-token` or `pepedih-website`
+   - Don't initialize with README (we already have one)
+
+2. **Push your code:**
+   ```bash
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+3. **Enable GitHub Pages:**
+   - Go to your repository on GitHub
+   - Click **Settings** → **Pages**
+   - Under "Source", select **Deploy from a branch**
+   - Choose **main** branch and **/ (root)** folder
+   - Click **Save**
+   - Your site will be live at: `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`
+
+### Custom Domain (Optional):
+- Add a `CNAME` file in the root with your domain name
+- Configure DNS settings as per GitHub Pages instructions
+
 ## Files
 
 - `index.html` - Main website

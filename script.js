@@ -35,6 +35,13 @@ let socialLinks = {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 BOBO Website Initializing...');
     console.log('Token Address:', TOKEN_MINT_ADDRESS);
+    console.log('THREE.js available:', typeof THREE !== 'undefined');
+    
+    // Check if required elements exist
+    const canvas = document.getElementById('pepe-canvas');
+    const container = document.getElementById('canvas-container');
+    console.log('Canvas found:', !!canvas);
+    console.log('Container found:', !!container);
     
     // Initialize scene first
     try {
@@ -42,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('✅ Scene initialized');
     } catch (error) {
         console.error('❌ Scene initialization failed:', error);
+        console.error('Error stack:', error.stack);
     }
     
     try {
@@ -49,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('✅ UI initialized');
     } catch (error) {
         console.error('❌ UI initialization failed:', error);
+        console.error('Error stack:', error.stack);
     }
     
     try {
@@ -56,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('✅ Market cap updates started');
     } catch (error) {
         console.error('❌ Market cap updates failed:', error);
+        console.error('Error stack:', error.stack);
     }
     
     // Initialize Supabase in background (non-blocking, won't break site if it fails)
@@ -676,7 +686,12 @@ function updateVitals(marketCap, priceChange24h, volume24h) {
 }
 
 function updateVolumeDisplay(volume) {
-    document.getElementById('volume24h').textContent = formatCurrency(volume);
+    const volumeEl = document.getElementById('volume24h');
+    if (volumeEl) {
+        volumeEl.textContent = formatCurrency(volume);
+    } else {
+        console.warn('volume24h element not found');
+    }
 }
 
 function formatCurrency(value) {

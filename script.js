@@ -7,6 +7,15 @@ let currentMarketCap = 0;
 let previousMarketCap = 0;
 let updateInterval;
 
+// Easter egg variables
+let konamiCode = [];
+let clickCount = 0;
+let easterEggsActive = {
+    rainbow: false,
+    disco: false,
+    bigBobo: false
+};
+
 // API Configuration
 const HELIUS_API_URL = 'https://mainnet.helius-rpc.com/?api-key=5b8196dc-7a4b-43fa-80f0-8f285ccf318b';
 
@@ -444,7 +453,7 @@ async function fetchTokenData() {
         if (priceData && priceData.price > 0) {
             tokenPrice = priceData.price;
             const volume24h = priceData.volume24h || 0;
-            const priceChange24h = priceData.priceChange24h || 0;
+            const priceChange1h = priceData.priceChange1h || 0; // Changed to 1h
             
             // Calculate market cap
             previousMarketCap = currentMarketCap;
@@ -456,14 +465,14 @@ async function fetchTokenData() {
             updateMarketCapDisplay(currentMarketCap);
             updatePriceDisplay(tokenPrice);
             updateVolumeDisplay(volume24h);
-            updateChangeDisplay(priceChange24h);
+            updateChangeDisplay(priceChange1h);
             
             // Update size
             const sizeInCm = updatePenisSize(currentMarketCap);
             updateSizeDisplay(sizeInCm);
             
-            // Update vitals
-            updateVitals(currentMarketCap, priceChange24h, volume24h);
+            // Update vitals (using 1h change for confidence)
+            updateVitals(currentMarketCap, priceChange1h, volume24h);
             
             // Update contract address display (full address)
             if (TOKEN_MINT_ADDRESS) {
@@ -536,12 +545,12 @@ async function getTokenPrice() {
             
             const price = parseFloat(bestPair.priceUsd || 0);
             const volume24h = parseFloat(bestPair.volume?.h24 || 0);
-            const priceChange24h = parseFloat(bestPair.priceChange?.h24 || 0);
+            const priceChange1h = parseFloat(bestPair.priceChange?.h1 || 0); // Changed to 1h
             
             return {
                 price,
                 volume24h,
-                priceChange24h
+                priceChange1h
             };
         }
         return null;
@@ -638,10 +647,10 @@ function updateMarketCap() {
             console.error('❌ Error updating volume display:', e);
         }
         
-        // Calculate 24h change
+        // Calculate 1h change (simulated)
         const change = previousMarketCap > 0 
             ? ((currentMarketCap - previousMarketCap) / previousMarketCap * 100)
-            : 0;
+            : (Math.random() - 0.5) * 10; // Random change for simulation
         try {
             updateChangeDisplay(change);
             console.log('✅ Change display updated');
@@ -698,9 +707,18 @@ function updatePriceDisplay(price) {
 }
 
 function updateChangeDisplay(change) {
-    const changeElement = document.getElementById('change24h');
-    changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
-    changeElement.style.color = change >= 0 ? '#4ade80' : '#ef4444';
+    const changeElement = document.getElementById('change1h');
+    const changeDetailElement = document.getElementById('change1hDetail');
+    
+    if (changeElement) {
+        changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+        changeElement.style.color = change >= 0 ? '#4ade80' : '#ef4444';
+    }
+    
+    if (changeDetailElement) {
+        changeDetailElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+        changeDetailElement.style.color = change >= 0 ? '#4ade80' : '#ef4444';
+    }
 }
 
 function updateSizeDisplay(sizeInCm) {

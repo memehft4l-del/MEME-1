@@ -177,6 +177,13 @@ function initScene() {
     // Create BOBO character
     createBoboCharacter();
     
+    // Initialize raycaster for click detection
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+    
+    // Add click listener for penis easter egg
+    renderer.domElement.addEventListener('click', onCanvasClick, false);
+    
     // Initial render to ensure something shows up
     if (renderer && scene && camera) {
         renderer.render(scene, camera);

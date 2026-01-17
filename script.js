@@ -6,6 +6,9 @@ let baseSize = 1;
 let currentMarketCap = 0;
 let previousMarketCap = 0;
 let updateInterval;
+let particleSystem = null;
+let raycaster = null;
+let mouse = new THREE.Vector2();
 
 // Easter egg variables
 let konamiCode = [];

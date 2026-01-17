@@ -314,6 +314,8 @@ function createBoboCharacter() {
     penisMesh = new THREE.Mesh(penisGeometry, penisMaterial);
     penisMesh.position.set(0, -0.2, 0.4);
     penisMesh.rotation.x = Math.PI / 2;
+    // Make sure penis is clickable
+    penisMesh.userData.clickable = true;
     pepeGroup.add(penisMesh);
     
     // Tip
@@ -324,6 +326,7 @@ function createBoboCharacter() {
     });
     const tip = new THREE.Mesh(tipGeometry, tipMaterial);
     tip.position.set(0, -0.2, 0.4 + baseSize / 2);
+    tip.userData.clickable = true;
     pepeGroup.add(tip);
     penisMesh.tip = tip;
     
@@ -1069,7 +1072,10 @@ function updateFooterLinks() {
 
 // Penis click easter egg - white stuff comes out
 function onCanvasClick(event) {
-    if (!penisMesh || !camera || !scene || !raycaster) return;
+    if (!penisMesh || !camera || !scene || !raycaster || !renderer) {
+        console.log('Missing required objects:', {penisMesh: !!penisMesh, camera: !!camera, scene: !!scene, raycaster: !!raycaster, renderer: !!renderer});
+        return;
+    }
     
     // Calculate mouse position in normalized device coordinates
     const rect = renderer.domElement.getBoundingClientRect();
@@ -1079,15 +1085,29 @@ function onCanvasClick(event) {
     // Update raycaster
     raycaster.setFromCamera(mouse, camera);
     
-    // Check if penis was clicked
-    const intersects = raycaster.intersectObject(penisMesh, true);
+    // Check if penis or tip was clicked (check both)
+    const objectsToCheck = [penisMesh];
+    if (penisMesh.tip) {
+        objectsToCheck.push(penisMesh.tip);
+    }
+    
+    const intersects = raycaster.intersectObjects(objectsToCheck, false);
+    
+    console.log('Click detected, intersects:', intersects.length);
     
     if (intersects.length > 0) {
         // Get the tip position (where particles should come from)
-        const tipPosition = penisMesh.tip ? 
-            penisMesh.tip.position.clone() : 
-            intersects[0].point;
+        let tipPosition;
+        if (penisMesh.tip) {
+            // Get world position of tip
+            const worldPos = new THREE.Vector3();
+            penisMesh.tip.getWorldPosition(worldPos);
+            tipPosition = worldPos;
+        } else {
+            tipPosition = intersects[0].point;
+        }
         
+        console.log('Penis clicked! Creating particle effect at:', tipPosition);
         createPenisParticleEffect(tipPosition);
         showEasterEggMessage('💦 SPLOOSH! 💦');
     }

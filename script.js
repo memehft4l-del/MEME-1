@@ -181,8 +181,13 @@ function initScene() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
     
-    // Add click listener for penis easter egg
-    renderer.domElement.addEventListener('click', onCanvasClick, false);
+    // Add click listener for penis easter egg (use capture phase to catch before OrbitControls)
+    setTimeout(() => {
+        if (renderer && renderer.domElement) {
+            renderer.domElement.addEventListener('click', onCanvasClick, true); // Use capture phase
+            console.log('✅ Penis click listener added');
+        }
+    }, 500);
     
     // Initial render to ensure something shows up
     if (renderer && scene && camera) {

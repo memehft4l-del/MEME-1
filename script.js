@@ -17,8 +17,8 @@ const SUPABASE_URL = window.SUPABASE_URL || 'https://cwihyzlbsbbpchkheito.supaba
 const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'sb_publishable_Y_MINoKzOLp1DBG23X0HZg_NR9gXzSk';
 let supabaseClient = null;
 
-// Token mint address (can be set via UI or here)
-let TOKEN_MINT_ADDRESS = localStorage.getItem('bobo_token_address') || 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+// Token mint address (will be loaded from Supabase, fallback to default)
+let TOKEN_MINT_ADDRESS = null; // Will be set from Supabase or default
 let tokenDecimals = 9; // Default Solana token decimals
 let tokenSupply = 0;
 let tokenPrice = 0;
@@ -44,17 +44,7 @@ function initializeApp() {
     console.log('Canvas found:', !!canvas);
     console.log('Container found:', !!container);
     
-    // CRITICAL: Start market cap updates FIRST (this shows data immediately)
-    try {
-        console.log('🔥 Starting market cap updates FIRST...');
-        startMarketCapUpdates();
-        console.log('✅ Market cap updates started');
-    } catch (error) {
-        console.error('❌ Market cap updates failed:', error);
-        console.error('Error stack:', error.stack);
-    }
-    
-    // Initialize scene
+    // Initialize scene first
     try {
         initScene();
         console.log('✅ Scene initialized');
@@ -72,26 +62,38 @@ function initializeApp() {
         console.error('Error stack:', error.stack);
     }
     
-    // Initialize Supabase in background (non-blocking, won't break site if it fails)
-    setTimeout(() => {
-        try {
-            initSupabase();
-            loadConfigFromSupabase();
-        } catch (error) {
-            console.error('Supabase initialization error (non-critical):', error);
-            setDefaultLinks();
-        }
-    }, 100);
+    // Initialize Supabase FIRST to get token address, then start market cap updates
+    initSupabase();
     
-    // Set contract address placeholder (will be updated from dashboard)
+    // Load config from Supabase (async), then start market cap updates
+    loadConfigFromSupabase().then(() => {
+        // After Supabase config is loaded (or failed), start market cap updates
+        try {
+            console.log('🔥 Starting market cap updates after Supabase config loaded...');
+            console.log('📝 Using token address:', TOKEN_MINT_ADDRESS || 'DEFAULT');
+            startMarketCapUpdates();
+            console.log('✅ Market cap updates started');
+        } catch (error) {
+            console.error('❌ Market cap updates failed:', error);
+            console.error('Error stack:', error.stack);
+        }
+    }).catch((error) => {
+        console.error('Supabase config load error, starting with defaults:', error);
+        // Set default token address if Supabase fails
+        if (!TOKEN_MINT_ADDRESS) {
+            TOKEN_MINT_ADDRESS = 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+        }
+        try {
+            startMarketCapUpdates();
+        } catch (e) {
+            console.error('Failed to start market cap updates:', e);
+        }
+    });
+    
+    // Contract address will be set after Supabase loads
     const contractAddressEl = document.getElementById('contractAddress');
     if (contractAddressEl && (!contractAddressEl.textContent || contractAddressEl.textContent === '--')) {
-        // Show default token address if available (full address)
-        if (TOKEN_MINT_ADDRESS) {
-            contractAddressEl.textContent = TOKEN_MINT_ADDRESS;
-        } else {
-            contractAddressEl.textContent = 'Loading...';
-        }
+        contractAddressEl.textContent = 'Loading...';
     }
     
     // Show welcome modal on first visit

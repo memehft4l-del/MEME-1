@@ -726,19 +726,18 @@ function updateSizeDisplay(sizeInCm) {
     document.getElementById('currentSizeDetail').textContent = `${sizeInCm} cm`;
 }
 
-function updateVitals(marketCap, priceChange24h, volume24h) {
+function updateVitals(marketCap, priceChange1h, volume24h) {
     // Ego Level (based on market cap) - 0% to 100%
     const maxMC = 50000000; // $50M max
     const egoLevel = Math.min((marketCap / maxMC) * 100, 100);
     document.getElementById('egoLevel').textContent = `${egoLevel.toFixed(0)}%`;
     document.getElementById('egoBar').style.width = `${egoLevel}%`;
     
-    // Confidence (based on 24h price change)
-    // Positive change = HIGH confidence, negative = LOW
+    // Confidence (based on 1h price change - adjusted thresholds for 1h)
     let confidence = 'LOW';
-    if (priceChange24h > 20) confidence = 'HIGH';
-    else if (priceChange24h > 5) confidence = 'MEDIUM';
-    else if (priceChange24h < -20) confidence = 'VERY LOW';
+    if (priceChange1h > 10) confidence = 'HIGH'; // Adjusted for 1h
+    else if (priceChange1h > 2) confidence = 'MEDIUM';
+    else if (priceChange1h < -10) confidence = 'VERY LOW';
     document.getElementById('confidence').textContent = confidence;
     
     // Horniness (based on daily volume) - $30k to $2M range, fluid/linear

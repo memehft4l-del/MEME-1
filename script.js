@@ -396,6 +396,9 @@ function initUI() {
             }
         });
     }
+    
+    // Easter eggs initialization
+    initEasterEggs();
 }
 
 // Market cap updates with real API
@@ -1062,6 +1065,216 @@ function updateFooterLinks() {
     if (twitterLink) {
         twitterLink.href = socialLinks.twitter || '#';
     }
+}
+
+// Penis click easter egg - white stuff comes out
+function onCanvasClick(event) {
+    if (!penisMesh || !camera || !scene || !raycaster) return;
+    
+    // Calculate mouse position in normalized device coordinates
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // Update raycaster
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Check if penis was clicked
+    const intersects = raycaster.intersectObject(penisMesh, true);
+    
+    if (intersects.length > 0) {
+        // Get the tip position (where particles should come from)
+        const tipPosition = penisMesh.tip ? 
+            penisMesh.tip.position.clone() : 
+            intersects[0].point;
+        
+        createPenisParticleEffect(tipPosition);
+        showEasterEggMessage('💦 SPLOOSH! 💦');
+    }
+}
+
+function createPenisParticleEffect(position) {
+    // Remove existing particles if any
+    if (particleSystem) {
+        scene.remove(particleSystem);
+        particleSystem.geometry.dispose();
+        particleSystem.material.dispose();
+    }
+    
+    // Create particle system
+    const particleCount = 50;
+    const particles = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
+    
+    // Initialize particles at penis tip position
+    const startPos = position.clone();
+    
+    for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        
+        // Start position (at penis tip)
+        positions[i3] = startPos.x;
+        positions[i3 + 1] = startPos.y;
+        positions[i3 + 2] = startPos.z;
+        
+        // Random velocity (shooting out)
+        velocities.push({
+            x: (Math.random() - 0.5) * 0.3,
+            y: Math.random() * 0.4 + 0.2, // Upward bias
+            z: (Math.random() - 0.5) * 0.3
+        });
+    }
+    
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    // Create material (white, semi-transparent)
+    const material = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.15,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+    });
+    
+    particleSystem = new THREE.Points(particles, material);
+    scene.add(particleSystem);
+    
+    // Animate particles
+    let frame = 0;
+    const maxFrames = 60; // 1 second at 60fps
+    
+    function animateParticles() {
+        if (frame >= maxFrames || !particleSystem) {
+            if (particleSystem) {
+                scene.remove(particleSystem);
+                particleSystem.geometry.dispose();
+                particleSystem.material.dispose();
+                particleSystem = null;
+            }
+            return;
+        }
+        
+        const positions = particleSystem.geometry.attributes.position.array;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            const vel = velocities[i];
+            
+            // Update position
+            positions[i3] += vel.x;
+            positions[i3 + 1] += vel.y;
+            positions[i3 + 2] += vel.z;
+            
+            // Gravity effect
+            vel.y -= 0.01;
+            
+            // Fade out
+            const alpha = 1 - (frame / maxFrames);
+            if (i === 0) {
+                particleSystem.material.opacity = alpha * 0.8;
+            }
+        }
+        
+        particleSystem.geometry.attributes.position.needsUpdate = true;
+        frame++;
+        
+        requestAnimationFrame(animateParticles);
+    }
+    
+    animateParticles();
+}
+
+// Easter Eggs
+function initEasterEggs() {
+    // Konami Code: ↑ ↑ ↓ ↓ ← → ← → B A
+    const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+    let konamiCode = [];
+    
+    document.addEventListener('keydown', (e) => {
+        konamiCode.push(e.code);
+        if (konamiCode.length > konamiSequence.length) {
+            konamiCode.shift();
+        }
+        
+        if (konamiCode.join(',') === konamiSequence.join(',')) {
+            activateRainbowMode();
+            konamiCode = [];
+        }
+    });
+    
+    // Click counter easter egg (click BOBO 10 times)
+    const canvas = document.getElementById('pepe-canvas');
+    if (canvas) {
+        canvas.addEventListener('click', () => {
+            clickCount++;
+            if (clickCount === 10) {
+                activateBigBobo();
+                clickCount = 0;
+            }
+            
+            // Reset counter after 3 seconds
+            setTimeout(() => {
+                if (clickCount < 10) clickCount = 0;
+            }, 3000);
+        });
+    }
+    
+    // Triple tap on mobile
+    let tapCount = 0;
+    let tapTimer;
+    if (canvas) {
+        canvas.addEventListener('touchstart', () => {
+            tapCount++;
+            clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => {
+                if (tapCount === 3) {
+                    activateDiscoMode();
+                }
+                tapCount = 0;
+            }, 500);
+        });
+    }
+}
+
+function activateRainbowMode() {
+    easterEggsActive.rainbow = !easterEggsActive.rainbow;
+    document.body.classList.toggle('rainbow-mode', easterEggsActive.rainbow);
+    showEasterEggMessage('🌈 RAINBOW MODE ACTIVATED! 🌈');
+}
+
+function activateDiscoMode() {
+    easterEggsActive.disco = !easterEggsActive.disco;
+    document.body.classList.toggle('disco-mode', easterEggsActive.disco);
+    showEasterEggMessage('💃 DISCO MODE! 💃');
+}
+
+function activateBigBobo() {
+    easterEggsActive.bigBobo = !easterEggsActive.bigBobo;
+    if (pepeGroup) {
+        if (easterEggsActive.bigBobo) {
+            pepeGroup.scale.set(2, 2, 2);
+            showEasterEggMessage('🔍 BIG BOBO MODE!');
+        } else {
+            pepeGroup.scale.set(1, 1, 1);
+        }
+    }
+}
+
+function showEasterEggMessage(message) {
+    const msg = document.createElement('div');
+    msg.className = 'easter-egg-message';
+    msg.textContent = message;
+    document.body.appendChild(msg);
+    
+    setTimeout(() => {
+        msg.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        msg.classList.remove('show');
+        setTimeout(() => msg.remove(), 500);
+    }, 3000);
 }
 
 

@@ -932,11 +932,16 @@ function initSupabase() {
 async function loadConfigFromSupabase() {
     if (!supabaseClient) {
         // Use default links if Supabase not configured
+        console.log('⚠️ Supabase not configured, using default token address');
+        if (!TOKEN_MINT_ADDRESS) {
+            TOKEN_MINT_ADDRESS = 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+        }
         setDefaultLinks();
         return;
     }
     
     try {
+        console.log('📥 Loading config from Supabase...');
         // Fetch configuration from Supabase
         const { data, error } = await supabaseClient
             .from('config')
@@ -945,25 +950,40 @@ async function loadConfigFromSupabase() {
             .single();
         
         if (error) {
-            console.error('Error loading config from Supabase:', error);
+            console.error('❌ Error loading config from Supabase:', error);
+            // Use default token address if Supabase fails
+            if (!TOKEN_MINT_ADDRESS) {
+                TOKEN_MINT_ADDRESS = 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+            }
             setDefaultLinks();
             return;
         }
         
         if (data) {
-            // Update token address if available (from dashboard)
-            if (data.token_address) {
-                TOKEN_MINT_ADDRESS = data.token_address;
+            console.log('✅ Config loaded from Supabase:', data);
+            
+            // Update token address from Supabase (this is the source of truth)
+            if (data.token_address && data.token_address.trim()) {
+                TOKEN_MINT_ADDRESS = data.token_address.trim();
+                console.log('✅ Token address set from Supabase:', TOKEN_MINT_ADDRESS);
+                
                 // Display as CA (Contract Address) - full address
                 const contractAddressEl = document.getElementById('contractAddress');
                 if (contractAddressEl) {
-                    contractAddressEl.textContent = data.token_address;
+                    contractAddressEl.textContent = TOKEN_MINT_ADDRESS;
                 }
-                // Restart updates with new address from dashboard
-                if (updateInterval) {
-                    clearInterval(updateInterval);
+            } else {
+                // Fallback to default if Supabase has no token address
+                if (!TOKEN_MINT_ADDRESS) {
+                    TOKEN_MINT_ADDRESS = 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+                    console.log('⚠️ No token address in Supabase, using default:', TOKEN_MINT_ADDRESS);
                 }
-                startMarketCapUpdates();
+                
+                // Still update the display
+                const contractAddressEl = document.getElementById('contractAddress');
+                if (contractAddressEl && TOKEN_MINT_ADDRESS) {
+                    contractAddressEl.textContent = TOKEN_MINT_ADDRESS;
+                }
             }
             
             // Update social links
@@ -974,10 +994,17 @@ async function loadConfigFromSupabase() {
             // Update footer links
             updateFooterLinks();
         } else {
+            console.warn('⚠️ No config data found in Supabase, using defaults');
+            if (!TOKEN_MINT_ADDRESS) {
+                TOKEN_MINT_ADDRESS = 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+            }
             setDefaultLinks();
         }
     } catch (error) {
-        console.error('Error fetching config:', error);
+        console.error('❌ Error fetching config:', error);
+        if (!TOKEN_MINT_ADDRESS) {
+            TOKEN_MINT_ADDRESS = 'Ep7o7wAi4NUJWAfpuGYd46DjJ88yYMY2wt9yd6n9pump';
+        }
         setDefaultLinks();
     }
 }

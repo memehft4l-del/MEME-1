@@ -373,6 +373,50 @@
             document.getElementById('status').className = 'status stopped';
         }
         
+        // Wait for libraries to load before initializing
+        let librariesLoaded = false;
+        
+        function checkLibraries() {
+            // Only need solanaWeb3 - we have fallback for seed derivation
+            if (typeof solanaWeb3 !== 'undefined') {
+                librariesLoaded = true;
+                console.log('✅ Solana Web3 loaded');
+                
+                // Check if Ed25519HDKey is available (optional, we have fallback)
+                const ed25519Available = typeof Ed25519HDKey !== 'undefined' || 
+                                         typeof window.Ed25519HDKey !== 'undefined';
+                if (ed25519Available) {
+                    console.log('✅ Ed25519HDKey loaded (will use for seed derivation)');
+                } else {
+                    console.log('⚠️ Ed25519HDKey not loaded (will use Web Crypto API fallback)');
+                }
+                
+                initializeApp();
+            } else {
+                console.log('Waiting for Solana Web3...', {
+                    solanaWeb3: typeof solanaWeb3 !== 'undefined'
+                });
+            }
+        }
+        
+        // Check immediately and then periodically
+        checkLibraries();
+        const libCheckInterval = setInterval(() => {
+            if (librariesLoaded) {
+                clearInterval(libCheckInterval);
+            } else {
+                checkLibraries();
+            }
+        }, 100);
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+            if (!librariesLoaded) {
+                clearInterval(libCheckInterval);
+                alert('Error: Libraries failed to load. Please check your internet connection and refresh the page.');
+            }
+        }, 5000);
+        
         // Also try on window load as backup
         window.addEventListener('load', function() {
             setTimeout(function() {

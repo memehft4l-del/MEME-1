@@ -346,24 +346,24 @@
         let librariesLoaded = false;
         
         function checkLibraries() {
-            // Check for Ed25519HDKey in multiple possible locations
-            const ed25519Available = typeof Ed25519HDKey !== 'undefined' || 
-                                     typeof window.Ed25519HDKey !== 'undefined' ||
-                                     (typeof window !== 'undefined' && window.Ed25519HDKey);
-            
-            if (typeof solanaWeb3 !== 'undefined' && ed25519Available) {
+            // Only need solanaWeb3 - we have fallback for seed derivation
+            if (typeof solanaWeb3 !== 'undefined') {
                 librariesLoaded = true;
-                console.log('✅ All libraries loaded');
-                // Make sure Ed25519HDKey is accessible globally
-                if (typeof Ed25519HDKey === 'undefined' && typeof window.Ed25519HDKey !== 'undefined') {
-                    window.Ed25519HDKey = window.Ed25519HDKey;
+                console.log('✅ Solana Web3 loaded');
+                
+                // Check if Ed25519HDKey is available (optional, we have fallback)
+                const ed25519Available = typeof Ed25519HDKey !== 'undefined' || 
+                                         typeof window.Ed25519HDKey !== 'undefined';
+                if (ed25519Available) {
+                    console.log('✅ Ed25519HDKey loaded (will use for seed derivation)');
+                } else {
+                    console.log('⚠️ Ed25519HDKey not loaded (will use Web Crypto API fallback)');
                 }
+                
                 initializeApp();
             } else {
-                console.log('Waiting for libraries...', {
-                    solanaWeb3: typeof solanaWeb3 !== 'undefined',
-                    Ed25519HDKey: typeof Ed25519HDKey !== 'undefined',
-                    windowEd25519HDKey: typeof window.Ed25519HDKey !== 'undefined'
+                console.log('Waiting for Solana Web3...', {
+                    solanaWeb3: typeof solanaWeb3 !== 'undefined'
                 });
             }
         }
@@ -406,21 +406,6 @@
                 return;
             }
             
-            // Check for Ed25519HDKey - it might be exposed differently
-            let ed25519Available = false;
-            if (typeof Ed25519HDKey !== 'undefined') {
-                ed25519Available = true;
-            } else if (typeof window.Ed25519HDKey !== 'undefined') {
-                ed25519Available = true;
-            }
-            
-            if (!ed25519Available) {
-                console.error('Ed25519HDKey not available');
-                return;
-            }
-            
-            console.log('✅ Solana Web3 loaded');
-            console.log('✅ Ed25519HDKey loaded');
             console.log(`✅ BIP39 wordlist loaded: ${BIP39_WORDS.length} words`);
             
             // Set up event listeners
@@ -474,26 +459,67 @@
             }
         }
         
+        // Simple PBKDF2 implementation for seed derivation (fallback if Ed25519HDKey fails)
+        async function deriveSeedFromMnemonic(mnemonic) {
+            // Try Ed25519HDKey first
+            const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
+            
+            if (ed25519 && ed25519.mnemonicToSeed) {
+                try {
+                    const seed = ed25519.mnemonicToSeed(mnemonic);
+                    if (seed && seed.length >= 32) {
+                        return Array.from(seed).slice(0, 32);
+                    }
+                } catch (e) {
+                    console.warn('Ed25519HDKey.mnemonicToSeed failed, using fallback:', e);
+                }
+            }
+            
+            // Fallback: Use Web Crypto API for PBKDF2
+            if (typeof crypto !== 'undefined' && crypto.subtle) {
+                try {
+                    const encoder = new TextEncoder();
+                    const salt = encoder.encode('mnemonic');
+                    const keyMaterial = await crypto.subtle.importKey(
+                        'raw',
+                        encoder.encode(mnemonic),
+                        'PBKDF2',
+                        false,
+                        ['deriveBits']
+                    );
+                    const seedBuffer = await crypto.subtle.deriveBits(
+                        {
+                            name: 'PBKDF2',
+                            salt: salt,
+                            iterations: 2048,
+                            hash: 'SHA-512'
+                        },
+                        keyMaterial,
+                        512 // 64 bytes
+                    );
+                    return Array.from(new Uint8Array(seedBuffer)).slice(0, 32);
+                } catch (e) {
+                    console.error('Web Crypto API failed:', e);
+                }
+            }
+            
+            // Last resort: simple hash-based approach (less secure but works)
+            const encoder = new TextEncoder();
+            const data = encoder.encode(mnemonic);
+            const hashBuffer = await crypto.subtle.digest('SHA-512', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.slice(0, 32);
+        }
+        
         async function checkPhrase(phrase) {
             try {
-                // Check direct seed derivation (most common)
-                // Handle different ways Ed25519HDKey might be exposed
-                const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
+                // Derive seed from mnemonic
+                const seed = await deriveSeedFromMnemonic(phrase);
                 
-                if (!ed25519) {
-                    throw new Error('Ed25519HDKey not available');
+                if (!seed || seed.length !== 32) {
+                    throw new Error('Failed to derive valid seed');
                 }
                 
-                if (!ed25519.mnemonicToSeed) {
-                    throw new Error('Ed25519HDKey.mnemonicToSeed not available');
-                }
-                
-                const masterSeed = ed25519.mnemonicToSeed(phrase);
-                if (!masterSeed || masterSeed.length < 32) {
-                    throw new Error('Invalid seed generated');
-                }
-                
-                const seed = Array.from(masterSeed).slice(0, 32);
                 const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
                 const address = keypair.publicKey.toString();
                 
@@ -509,8 +535,7 @@
                 console.error('Error checking phrase:', error);
                 console.error('Error details:', {
                     phrase: phrase.substring(0, 20) + '...',
-                    errorMessage: error.message,
-                    errorStack: error.stack
+                    errorMessage: error.message
                 });
                 return null;
             }

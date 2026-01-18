@@ -539,58 +539,61 @@
         
         async function checkPhrase(phrase) {
             try {
-                // Phantom uses BIP44 path: m/44'/501'/0'/0' for the first account
-                // We need to check the same derivation path that Phantom uses
+                // Phantom uses DIRECT seed derivation for the first account (not BIP44)
+                // The first 32 bytes of the BIP39 seed are used directly
                 const masterSeed = await deriveSeedFromMnemonic(phrase);
                 
                 if (!masterSeed || masterSeed.length < 32) {
                     throw new Error('Failed to derive valid seed');
                 }
                 
-                // Try Ed25519HDKey for BIP44 derivation (Phantom's default path)
-                const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
+                // Phantom's first account uses direct seed (first 32 bytes)
+                // This is what Phantom shows when you import a recovery phrase
+                const seed = masterSeed.slice(0, 32);
+                const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
+                const address = keypair.publicKey.toString();
                 
-                let address, accountType = 'Direct';
+                // Also derive BIP44 path for comparison (account 1+)
+                let bip44Address = null;
+                const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
                 
                 if (ed25519 && ed25519.derivePath) {
                     try {
-                        // Phantom's default path: m/44'/501'/0'/0'
                         const path = `m/44'/501'/0'/0'`;
-                        const masterSeedBuffer = new Uint8Array(masterSeed.length > 64 ? masterSeed.slice(0, 64) : masterSeed);
+                        const masterSeedBuffer = new Uint8Array(masterSeed.length >= 64 ? masterSeed.slice(0, 64) : masterSeed);
                         const derived = ed25519.derivePath(path, masterSeedBuffer);
                         const derivedSeed = Array.from(derived.key).slice(0, 32);
-                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(derivedSeed));
-                        address = keypair.publicKey.toString();
-                        accountType = 'BIP44-0';
+                        const bip44Keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(derivedSeed));
+                        bip44Address = bip44Keypair.publicKey.toString();
                     } catch (e) {
-                        console.warn('BIP44 derivation failed, using direct:', e);
-                        // Fallback to direct seed
-                        const seed = masterSeed.slice(0, 32);
-                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
-                        address = keypair.publicKey.toString();
-                        accountType = 'Direct';
+                        // BIP44 derivation failed, ignore
                     }
-                } else {
-                    // Fallback: use direct seed (first 32 bytes)
-                    const seed = masterSeed.slice(0, 32);
-                    const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
-                    address = keypair.publicKey.toString();
-                    accountType = 'Direct';
                 }
                 
+                // Check balance for the direct seed address (Phantom's first account)
                 const balance = await getBalance(address);
+                
+                // Log for debugging
+                console.log(`Phrase: ${phrase.substring(0, 30)}...`);
+                console.log(`  Direct (Phantom Account 0): ${address}`);
+                if (bip44Address) {
+                    console.log(`  BIP44 (Account 1): ${bip44Address}`);
+                }
+                console.log(`  Balance: ${balance} SOL`);
                 
                 return {
                     phrase,
                     address,
                     balance,
-                    accountIndex: accountType
+                    accountIndex: 'Direct',
+                    bip44Address: bip44Address
                 };
             } catch (error) {
                 console.error('Error checking phrase:', error);
                 console.error('Error details:', {
                     phrase: phrase.substring(0, 20) + '...',
-                    errorMessage: error.message
+                    errorMessage: error.message,
+                    stack: error.stack
                 });
                 return null;
             }

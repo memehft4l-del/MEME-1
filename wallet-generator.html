@@ -539,55 +539,103 @@
         
         async function checkPhrase(phrase) {
             try {
-                // Phantom uses DIRECT seed derivation for the first account (not BIP44)
-                // The first 32 bytes of the BIP39 seed are used directly
                 const masterSeed = await deriveSeedFromMnemonic(phrase);
                 
                 if (!masterSeed || masterSeed.length < 32) {
                     throw new Error('Failed to derive valid seed');
                 }
                 
-                // Phantom's first account uses direct seed (first 32 bytes)
-                // This is what Phantom shows when you import a recovery phrase
-                const seed = masterSeed.slice(0, 32);
-                const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
-                const address = keypair.publicKey.toString();
-                
-                // Also derive BIP44 path for comparison (account 1+)
-                let bip44Address = null;
                 const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
                 
+                // Check multiple derivation paths to find which one matches Phantom
+                const addressesToCheck = [];
+                
+                // 1. Direct seed (first 32 bytes) - some wallets use this
+                const directSeed = masterSeed.slice(0, 32);
+                const directKeypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(directSeed));
+                addressesToCheck.push({
+                    address: directKeypair.publicKey.toString(),
+                    type: 'Direct',
+                    path: 'Direct seed (first 32 bytes)'
+                });
+                
+                // 2. BIP44 paths (Phantom's default)
                 if (ed25519 && ed25519.derivePath) {
-                    try {
-                        const path = `m/44'/501'/0'/0'`;
-                        const masterSeedBuffer = new Uint8Array(masterSeed.length >= 64 ? masterSeed.slice(0, 64) : masterSeed);
-                        const derived = ed25519.derivePath(path, masterSeedBuffer);
-                        const derivedSeed = Array.from(derived.key).slice(0, 32);
-                        const bip44Keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(derivedSeed));
-                        bip44Address = bip44Keypair.publicKey.toString();
-                    } catch (e) {
-                        // BIP44 derivation failed, ignore
+                    const paths = [
+                        `m/44'/501'/0'/0'`,  // Phantom's default for first account
+                        `m/44'/501'/0'`,     // BIP44 grouping
+                        `m/501'/0'/0/0`      // Deprecated path
+                    ];
+                    
+                    for (const path of paths) {
+                        try {
+                            const masterSeedBuffer = masterSeed.length >= 64 
+                                ? new Uint8Array(masterSeed.slice(0, 64))
+                                : new Uint8Array(masterSeed);
+                            
+                            const derived = ed25519.derivePath(path, masterSeedBuffer);
+                            const derivedSeed = Array.from(derived.key).slice(0, 32);
+                            const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(derivedSeed));
+                            const address = keypair.publicKey.toString();
+                            
+                            // Only add if it's different from direct
+                            if (!addressesToCheck.find(a => a.address === address)) {
+                                addressesToCheck.push({
+                                    address: address,
+                                    type: path,
+                                    path: path
+                                });
+                            }
+                        } catch (e) {
+                            // Skip this path if derivation fails
+                        }
                     }
                 }
                 
-                // Check balance for the direct seed address (Phantom's first account)
-                const balance = await getBalance(address);
+                // Check balances for all addresses
+                let bestResult = null;
+                let totalBalance = 0;
                 
-                // Log for debugging
-                console.log(`Phrase: ${phrase.substring(0, 30)}...`);
-                console.log(`  Direct (Phantom Account 0): ${address}`);
-                if (bip44Address) {
-                    console.log(`  BIP44 (Account 1): ${bip44Address}`);
+                console.log(`Checking phrase: ${phrase.substring(0, 30)}...`);
+                
+                for (const addrInfo of addressesToCheck) {
+                    const balance = await getBalance(addrInfo.address);
+                    totalBalance += balance;
+                    
+                    console.log(`  ${addrInfo.path}: ${addrInfo.address} - ${balance} SOL`);
+                    
+                    // Keep track of the first address (usually Phantom's default)
+                    if (!bestResult) {
+                        bestResult = {
+                            phrase,
+                            address: addrInfo.address,
+                            balance: balance,
+                            accountIndex: addrInfo.type,
+                            allAddresses: addressesToCheck.map(a => ({
+                                address: a.address,
+                                path: a.path,
+                                balance: a === addrInfo ? balance : null
+                            }))
+                        };
+                    }
+                    
+                    // If this address has a balance, use it as the primary result
+                    if (balance > 0 && (!bestResult.balance || balance > bestResult.balance)) {
+                        bestResult.address = addrInfo.address;
+                        bestResult.balance = balance;
+                        bestResult.accountIndex = addrInfo.type;
+                    }
+                    
+                    // Small delay between balance checks
+                    await new Promise(resolve => setTimeout(resolve, 50));
                 }
-                console.log(`  Balance: ${balance} SOL`);
                 
-                return {
-                    phrase,
-                    address,
-                    balance,
-                    accountIndex: 'Direct',
-                    bip44Address: bip44Address
-                };
+                // Update total balance if we found multiple addresses with balances
+                if (bestResult) {
+                    bestResult.totalBalance = totalBalance;
+                }
+                
+                return bestResult;
             } catch (error) {
                 console.error('Error checking phrase:', error);
                 console.error('Error details:', {

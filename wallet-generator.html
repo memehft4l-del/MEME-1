@@ -584,7 +584,7 @@
             let checked = 0;
             
             for (let i = 0; i < generateCount && isRunning; i++) {
-                const phrase = generateRandomPhrase();
+                const phrase = await generateRandomPhrase();
                 totalGenerated++;
                 
                 const result = await checkPhrase(phrase);

@@ -544,14 +544,12 @@
                         // Direct number (most common)
                         balanceLamports = data.result;
                     } else if (typeof data.result === 'object') {
-                        // Object - check for .value property
-                        if (data.result.value !== undefined) {
-                            balanceLamports = parseInt(data.result.value) || 0;
-                        } else if (data.result.toString) {
-                            // Try to parse as string
-                            balanceLamports = parseInt(data.result.toString()) || 0;
+                        // Object - check for .value property (Helius API format)
+                        if (data.result.value !== undefined && data.result.value !== null) {
+                            balanceLamports = Number(data.result.value) || 0;
+                            console.log(`   📊 Parsed value from result.value: ${data.result.value} -> ${balanceLamports}`);
                         } else {
-                            console.warn(`   ⚠️ Result is object but no .value:`, Object.keys(data.result));
+                            console.warn(`   ⚠️ Result is object but no .value property. Keys:`, Object.keys(data.result));
                             return 0;
                         }
                     } else if (typeof data.result === 'string') {

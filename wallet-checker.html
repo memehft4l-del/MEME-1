@@ -347,7 +347,11 @@
                     const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
                     const address = keypair.publicKey.toString();
                     
+                    console.log(`Checking Direct derivation: ${address.substring(0, 8)}...${address.substring(address.length - 8)}`);
                     const balance = await getBalance(address);
+                    if (balance > 0) {
+                        console.log(`✅ Found balance! ${balance} SOL at ${address}`);
+                    }
                     
                     checkedCount++;
                     results.push({

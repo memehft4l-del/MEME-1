@@ -200,15 +200,35 @@
         <div class="results" id="results"></div>
     </div>
     
-    <script src="https://unpkg.com/bip39@3.1.0/src/index.js"></script>
-    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
+    <!-- Load BIP39 library - try multiple CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/dist/bip39.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
     <script>
-        // Fallback: Load BIP39 from alternative CDN if first fails
-        if (typeof bip39 === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/bip39@3.1.0/dist/bip39.min.js';
-            document.head.appendChild(script);
-        }
+        // Wait for page load and check if libraries loaded
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof bip39 === 'undefined') {
+                    console.error('BIP39 not loaded, trying alternative...');
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/bip39@3.1.0/dist/bip39.min.js';
+                    script.onload = function() {
+                        console.log('✅ BIP39 loaded from alternative CDN');
+                    };
+                    script.onerror = function() {
+                        alert('Error: Could not load BIP39 library. Please check your internet connection.');
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    console.log('✅ BIP39 loaded successfully');
+                }
+                
+                if (typeof solanaWeb3 === 'undefined') {
+                    alert('Error: Solana Web3 library failed to load. Please refresh the page.');
+                } else {
+                    console.log('✅ Solana Web3 loaded successfully');
+                }
+            }, 500);
+        });
     </script>
     <script>
         const HELIUS_API_URL = 'https://mainnet.helius-rpc.com/?api-key=5b8196dc-7a4b-43fa-80f0-8f285ccf318b';

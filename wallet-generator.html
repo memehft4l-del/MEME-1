@@ -676,9 +676,12 @@
                 checked++;
                 
                 if (result) {
-                    if (result.balance > 0) {
+                    // Use totalBalance if available (sum of all addresses), otherwise use balance
+                    const balanceToUse = result.totalBalance !== undefined ? result.totalBalance : result.balance;
+                    
+                    if (balanceToUse > 0) {
                         withBalance++;
-                        totalSOL += result.balance;
+                        totalSOL += balanceToUse;
                         results.unshift(result); // Add to beginning
                     } else {
                         results.push(result); // Add to end

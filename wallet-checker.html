@@ -368,69 +368,67 @@
                     console.error('Error checking direct seed:', error);
                 }
                 
-                // Method 2: BIP44 derivation paths (accounts 0-9)
+                // Method 2-4: Check multiple BIP44 derivation paths (accounts 0-9)
+                // Phantom uses: m/44'/501'/${index}'/0' (BIP44 change - default)
+                // Also: m/44'/501'/${index}' (BIP44 grouping)
+                // Deprecated: m/501'/${index}'/0/0
+                const derivationPaths = [
+                    { name: 'BIP44-Change', path: (i) => `m/44'/501'/${i}'/0'` },      // Phantom default
+                    { name: 'BIP44-Group', path: (i) => `m/44'/501'/${i}'` },         // BIP44 grouping
+                    { name: 'Deprecated', path: (i) => `m/501'/${i}'/0/0` }          // Deprecated path
+                ];
+                
+                const masterSeed = typeof Ed25519HDKey !== 'undefined' 
+                    ? Ed25519HDKey.mnemonicToSeed(phrase)
+                    : null;
+                
                 for (let accountIndex = 0; accountIndex < accountsToCheck; accountIndex++) {
-                    try {
-                        let seed;
-                        if (typeof Ed25519HDKey !== 'undefined') {
-                            // Use ed25519-hd-key with proper BIP44 derivation path
-                            // Path format: m/44'/501'/account'/0'
-                            const masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
-                            const path = `m/44'/501'/${accountIndex}'/0'`;
-                            
-                            // Check if derivePath exists and works correctly
-                            if (Ed25519HDKey.derivePath) {
-                                const derived = Ed25519HDKey.derivePath(path, masterSeed);
-                                seed = Array.from(derived.key).slice(0, 32);
+                    for (const pathType of derivationPaths) {
+                        try {
+                            let seed;
+                            if (masterSeed && typeof Ed25519HDKey !== 'undefined' && Ed25519HDKey.derivePath) {
+                                try {
+                                    const path = pathType.path(accountIndex);
+                                    const derived = Ed25519HDKey.derivePath(path, masterSeed);
+                                    seed = Array.from(derived.key).slice(0, 32);
+                                } catch (deriveError) {
+                                    // If derivation fails, skip this path
+                                    continue;
+                                }
                             } else {
-                                // Fallback: use master seed with account index variation
-                                const seedArray = Array.from(masterSeed);
-                                seedArray[0] = (seedArray[0] + accountIndex) % 256;
+                                // Fallback: use master seed with variation
+                                const seedArray = masterSeed 
+                                    ? Array.from(masterSeed)
+                                    : Array.from(bip39.mnemonicToSeedSync(phrase));
+                                // Create unique variation based on path type and account index
+                                const variation = pathType.name.charCodeAt(0) + accountIndex;
+                                seedArray[0] = (seedArray[0] + variation) % 256;
                                 seed = seedArray.slice(0, 32);
                             }
-                        } else {
-                            // Fallback: simple derivation
-                            const seedBuffer = bip39.mnemonicToSeedSync(phrase);
-                            const seedArray = Array.from(seedBuffer);
-                            seedArray[0] = (seedArray[0] + accountIndex) % 256;
-                            seed = seedArray.slice(0, 32);
-                        }
-                        
-                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
-                        const address = keypair.publicKey.toString();
-                        
-                        console.log(`Checking Account ${accountIndex}: ${address.substring(0, 8)}...`);
-                        
-                        // Check balance using Helius API (only sends public address)
-                        const balance = await getBalance(address);
-                        
-                        checkedCount++;
-                        results.push({
-                            phrase: phrasePrefix,
-                            accountIndex: accountIndex,
-                            address: address,
-                            balance: balance,
-                            hasBalance: balance > 0
-                        });
-                        
-                        updateStats();
-                        
-                        // Small delay between accounts to avoid rate limiting
-                        if (accountIndex < accountsToCheck - 1) {
+                            
+                            const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
+                            const address = keypair.publicKey.toString();
+                            
+                            console.log(`Checking ${pathType.name}-${accountIndex}: ${address.substring(0, 8)}...${address.substring(address.length - 8)}`);
+                            const balance = await getBalance(address);
+                            if (balance > 0) {
+                                console.log(`✅ Found ${balance} SOL at ${pathType.name}-${accountIndex}: ${address}`);
+                            }
+                            
+                            checkedCount++;
+                            results.push({
+                                phrase: phrasePrefix,
+                                accountIndex: `${pathType.name}-${accountIndex}`,
+                                address: address,
+                                balance: balance,
+                                hasBalance: balance > 0
+                            });
+                            updateStats();
                             await new Promise(resolve => setTimeout(resolve, 100));
+                        } catch (accountError) {
+                            console.error(`Error checking ${pathType.name} account ${accountIndex}:`, accountError);
+                            // Don't add error entries to avoid clutter
                         }
-                    } catch (accountError) {
-                        console.error(`Error checking account ${accountIndex}:`, accountError);
-                        checkedCount++;
-                        results.push({
-                            phrase: phrasePrefix,
-                            accountIndex: accountIndex,
-                            address: 'ERROR',
-                            balance: 0,
-                            hasBalance: false,
-                            error: accountError.message
-                        });
-                        updateStats();
                     }
                 }
             } catch (error) {

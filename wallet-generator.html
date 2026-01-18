@@ -485,8 +485,25 @@
                     return 0;
                 }
                 
+                // Helius API returns data.result as an object with .value property
+                let balanceLamports = 0;
+                
                 if (data.result !== undefined && data.result !== null) {
-                    const balanceLamports = parseInt(data.result);
+                    if (typeof data.result === 'object' && data.result.value !== undefined) {
+                        // Object with .value property (Helius format)
+                        balanceLamports = Number(data.result.value) || 0;
+                    } else if (typeof data.result === 'number') {
+                        // Direct number (fallback)
+                        balanceLamports = data.result;
+                    } else if (typeof data.result === 'string') {
+                        // String representation (fallback)
+                        balanceLamports = parseInt(data.result) || 0;
+                    }
+                    
+                    if (isNaN(balanceLamports)) {
+                        return 0;
+                    }
+                    
                     const balanceSOL = balanceLamports / 1e9;
                     
                     if (balanceSOL > 0) {

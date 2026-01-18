@@ -529,16 +529,31 @@
                 }
                 
                 const data = await response.json();
-                console.log(`   📦 API response:`, data);
+                console.log(`   📦 API response:`, JSON.stringify(data, null, 2));
                 
                 if (data.error) {
                     console.error(`   ❌ API error:`, data.error);
                     return 0;
                 }
                 
-                // Helius API returns data.result directly as a number (lamports)
+                // Helius API can return data.result as a number OR as an object with .value
+                let balanceLamports = 0;
+                
                 if (data.result !== undefined && data.result !== null) {
-                    const balanceLamports = parseInt(data.result);
+                    if (typeof data.result === 'number') {
+                        // Direct number
+                        balanceLamports = data.result;
+                    } else if (typeof data.result === 'object' && data.result.value !== undefined) {
+                        // Object with .value property
+                        balanceLamports = parseInt(data.result.value);
+                    } else if (typeof data.result === 'string') {
+                        // String representation
+                        balanceLamports = parseInt(data.result);
+                    } else {
+                        console.warn(`   ⚠️ Unexpected result format:`, typeof data.result, data.result);
+                        return 0;
+                    }
+                    
                     const balanceSOL = balanceLamports / 1e9;
                     
                     console.log(`   💰 Balance: ${balanceLamports} lamports = ${balanceSOL.toFixed(4)} SOL`);

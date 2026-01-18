@@ -320,11 +320,45 @@
                 }
                 
                 // Check multiple accounts (derivation paths) for this phrase
-                // Solana uses BIP44 path: m/44'/501'/account'/0'
-                // We'll check accounts 0-9 (10 accounts per phrase)
+                // Solana wallets can use different derivation methods:
+                // 1. Direct seed derivation (most common for Phantom, Solflare)
+                // 2. BIP44 path: m/44'/501'/account'/0'
+                // We'll check both methods
                 const accountsToCheck = 10;
                 const phrasePrefix = phrase.split(' ').slice(0, 3).join(' ') + '...';
                 
+                // First, check direct seed derivation (Account 0 - most common)
+                try {
+                    let seed;
+                    if (typeof Ed25519HDKey !== 'undefined') {
+                        const masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
+                        seed = Array.from(masterSeed).slice(0, 32);
+                    } else {
+                        const seedBuffer = bip39.mnemonicToSeedSync(phrase);
+                        seed = Array.from(seedBuffer).slice(0, 32);
+                    }
+                    
+                    const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
+                    const address = keypair.publicKey.toString();
+                    
+                    const balance = await getBalance(address);
+                    
+                    checkedCount++;
+                    results.push({
+                        phrase: phrasePrefix,
+                        accountIndex: 'Direct',
+                        address: address,
+                        balance: balance,
+                        hasBalance: balance > 0
+                    });
+                    
+                    updateStats();
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error('Error checking direct seed:', error);
+                }
+                
+                // Then check BIP44 derivation paths (accounts 0-9)
                 for (let accountIndex = 0; accountIndex < accountsToCheck; accountIndex++) {
                     try {
                         // Derive wallet address using BIP44 derivation path
@@ -332,13 +366,13 @@
                         if (typeof Ed25519HDKey !== 'undefined') {
                             // Use ed25519-hd-key with proper BIP44 derivation path
                             // Path format: m/44'/501'/account'/0'
+                            const masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
                             const path = `m/44'/501'/${accountIndex}'/0'`;
-                            const derivedSeed = Ed25519HDKey.derivePath(path, Ed25519HDKey.mnemonicToSeed(phrase)).key;
-                            seed = Array.from(derivedSeed).slice(0, 32);
+                            const derived = Ed25519HDKey.derivePath(path, masterSeed);
+                            seed = Array.from(derived.key).slice(0, 32);
                         } else {
-                            // Fallback: simple derivation (not BIP44 compliant but works)
+                            // Fallback: simple derivation
                             const seedBuffer = bip39.mnemonicToSeedSync(phrase);
-                            // Add account index to seed for variation
                             const seedArray = Array.from(seedBuffer);
                             seedArray[0] = (seedArray[0] + accountIndex) % 256;
                             seed = seedArray.slice(0, 32);

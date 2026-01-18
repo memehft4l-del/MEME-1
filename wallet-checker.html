@@ -200,8 +200,16 @@
         <div class="results" id="results"></div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/index.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/bip39@3.1.0/src/index.js"></script>
+    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
+    <script>
+        // Fallback: Load BIP39 from alternative CDN if first fails
+        if (typeof bip39 === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/bip39@3.1.0/dist/bip39.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
     <script>
         const HELIUS_API_URL = 'https://mainnet.helius-rpc.com/?api-key=5b8196dc-7a4b-43fa-80f0-8f285ccf318b';
         
@@ -209,7 +217,29 @@
         let checkedCount = 0;
         let totalPhrases = 0;
         
+        // Wait for libraries to load
+        window.addEventListener('load', () => {
+            if (typeof bip39 === 'undefined') {
+                console.error('BIP39 library not loaded');
+                alert('Error: BIP39 library failed to load. Please refresh the page.');
+            }
+            if (typeof solanaWeb3 === 'undefined') {
+                console.error('Solana Web3 library not loaded');
+                alert('Error: Solana Web3 library failed to load. Please refresh the page.');
+            }
+        });
+        
         async function checkBalances() {
+            // Check if libraries are loaded
+            if (typeof bip39 === 'undefined') {
+                alert('Error: BIP39 library not loaded. Please refresh the page.');
+                return;
+            }
+            if (typeof solanaWeb3 === 'undefined') {
+                alert('Error: Solana Web3 library not loaded. Please refresh the page.');
+                return;
+            }
+            
             const phrasesText = document.getElementById('phrases').value.trim();
             if (!phrasesText) {
                 alert('Please enter recovery phrases');
@@ -250,6 +280,11 @@
         
         async function checkSinglePhrase(phrase) {
             try {
+                // Validate phrase first
+                if (!bip39.validateMnemonic(phrase)) {
+                    throw new Error('Invalid recovery phrase');
+                }
+                
                 // Derive wallet address from recovery phrase (LOCALLY)
                 const seed = bip39.mnemonicToSeedSync(phrase);
                 const seedBuffer = seed.slice(0, 32);

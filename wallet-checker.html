@@ -471,8 +471,11 @@
                             
                             console.log(`Checking ${pathType.name}-${accountIndex}: ${address.substring(0, 8)}...${address.substring(address.length - 8)}`);
                             const balance = await getBalance(address);
+                            console.log(`   Balance result: ${balance} SOL`);
                             if (balance > 0) {
                                 console.log(`✅ Found ${balance} SOL at ${pathType.name}-${accountIndex}: ${address}`);
+                            } else {
+                                console.log(`   No balance found for ${address.substring(0, 8)}...`);
                             }
                             
                             checkedCount++;

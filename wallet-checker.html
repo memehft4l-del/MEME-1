@@ -315,14 +315,23 @@
         async function checkSinglePhrase(phrase) {
             try {
                 // Validate phrase first
-                if (!bip39.validateMnemonic(phrase)) {
+                if (!bip39 || !bip39.validateMnemonic(phrase)) {
                     throw new Error('Invalid recovery phrase');
                 }
                 
                 // Derive wallet address from recovery phrase (LOCALLY)
-                const seed = bip39.mnemonicToSeedSync(phrase);
-                const seedBuffer = seed.slice(0, 32);
-                const keypair = solanaWeb3.Keypair.fromSeed(seedBuffer);
+                let seed;
+                if (typeof Ed25519HDKey !== 'undefined') {
+                    // Use ed25519-hd-key for proper Solana derivation
+                    const derivedSeed = Ed25519HDKey.mnemonicToSeed(phrase);
+                    seed = Array.from(derivedSeed).slice(0, 32);
+                } else {
+                    // Fallback: use bip39 function
+                    const seedBuffer = bip39.mnemonicToSeedSync(phrase);
+                    seed = Array.from(seedBuffer).slice(0, 32);
+                }
+                
+                const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
                 const address = keypair.publicKey.toString();
                 
                 // Check balance using Helius API (only sends public address)

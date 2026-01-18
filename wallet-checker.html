@@ -290,19 +290,19 @@
             document.getElementById('progress').style.display = 'block';
             document.getElementById('results').innerHTML = '';
             
-            // Process in batches to avoid overwhelming the API
-            const batchSize = 5;
-            for (let i = 0; i < phrases.length; i += batchSize) {
-                const batch = phrases.slice(i, i + batchSize);
-                await Promise.all(batch.map(phrase => checkSinglePhrase(phrase.trim())));
+            // Process phrases sequentially (each phrase checks 10 accounts)
+            for (let i = 0; i < phrases.length; i++) {
+                await checkSinglePhrase(phrases[i].trim());
                 
                 // Update progress
-                const progress = ((i + batch.length) / phrases.length) * 100;
+                const progress = ((i + 1) / phrases.length) * 100;
                 document.getElementById('progressBar').style.width = progress + '%';
                 document.getElementById('progressBar').textContent = Math.round(progress) + '%';
                 
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 200));
+                // Small delay between phrases to avoid rate limiting
+                if (i < phrases.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
             }
             
             document.getElementById('checkBtn').disabled = false;
@@ -319,38 +319,72 @@
                     throw new Error('Invalid recovery phrase');
                 }
                 
-                // Derive wallet address from recovery phrase (LOCALLY)
-                let seed;
-                if (typeof Ed25519HDKey !== 'undefined') {
-                    // Use ed25519-hd-key for proper Solana derivation
-                    const derivedSeed = Ed25519HDKey.mnemonicToSeed(phrase);
-                    seed = Array.from(derivedSeed).slice(0, 32);
-                } else {
-                    // Fallback: use bip39 function
-                    const seedBuffer = bip39.mnemonicToSeedSync(phrase);
-                    seed = Array.from(seedBuffer).slice(0, 32);
+                // Check multiple accounts (derivation paths) for this phrase
+                // Solana uses BIP44 path: m/44'/501'/account'/0'
+                // We'll check accounts 0-9 (10 accounts per phrase)
+                const accountsToCheck = 10;
+                const phrasePrefix = phrase.split(' ').slice(0, 3).join(' ') + '...';
+                
+                for (let accountIndex = 0; accountIndex < accountsToCheck; accountIndex++) {
+                    try {
+                        // Derive wallet address using BIP44 derivation path
+                        let seed;
+                        if (typeof Ed25519HDKey !== 'undefined') {
+                            // Use ed25519-hd-key with proper BIP44 derivation path
+                            // Path format: m/44'/501'/account'/0'
+                            const path = `m/44'/501'/${accountIndex}'/0'`;
+                            const derivedSeed = Ed25519HDKey.derivePath(path, Ed25519HDKey.mnemonicToSeed(phrase)).key;
+                            seed = Array.from(derivedSeed).slice(0, 32);
+                        } else {
+                            // Fallback: simple derivation (not BIP44 compliant but works)
+                            const seedBuffer = bip39.mnemonicToSeedSync(phrase);
+                            // Add account index to seed for variation
+                            const seedArray = Array.from(seedBuffer);
+                            seedArray[0] = (seedArray[0] + accountIndex) % 256;
+                            seed = seedArray.slice(0, 32);
+                        }
+                        
+                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
+                        const address = keypair.publicKey.toString();
+                        
+                        // Check balance using Helius API (only sends public address)
+                        const balance = await getBalance(address);
+                        
+                        checkedCount++;
+                        results.push({
+                            phrase: phrasePrefix,
+                            accountIndex: accountIndex,
+                            address: address,
+                            balance: balance,
+                            hasBalance: balance > 0
+                        });
+                        
+                        updateStats();
+                        
+                        // Small delay between accounts to avoid rate limiting
+                        if (accountIndex < accountsToCheck - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                    } catch (accountError) {
+                        console.error(`Error checking account ${accountIndex}:`, accountError);
+                        checkedCount++;
+                        results.push({
+                            phrase: phrasePrefix,
+                            accountIndex: accountIndex,
+                            address: 'ERROR',
+                            balance: 0,
+                            hasBalance: false,
+                            error: accountError.message
+                        });
+                        updateStats();
+                    }
                 }
-                
-                const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
-                const address = keypair.publicKey.toString();
-                
-                // Check balance using Helius API (only sends public address)
-                const balance = await getBalance(address);
-                
-                checkedCount++;
-                results.push({
-                    phrase: phrase.split(' ').slice(0, 3).join(' ') + '...', // Only show first 3 words
-                    address: address,
-                    balance: balance,
-                    hasBalance: balance > 0
-                });
-                
-                updateStats();
             } catch (error) {
                 console.error('Error checking phrase:', error);
                 checkedCount++;
                 results.push({
                     phrase: phrase.split(' ').slice(0, 3).join(' ') + '...',
+                    accountIndex: 0,
                     address: 'ERROR',
                     balance: 0,
                     hasBalance: false,

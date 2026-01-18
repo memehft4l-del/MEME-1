@@ -535,15 +535,44 @@
         
         async function checkPhrase(phrase) {
             try {
-                // Derive seed from mnemonic
-                const seed = await deriveSeedFromMnemonic(phrase);
+                // Phantom uses BIP44 path: m/44'/501'/0'/0' for the first account
+                // We need to check the same derivation path that Phantom uses
+                const masterSeed = await deriveSeedFromMnemonic(phrase);
                 
-                if (!seed || seed.length !== 32) {
+                if (!masterSeed || masterSeed.length < 32) {
                     throw new Error('Failed to derive valid seed');
                 }
                 
-                const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
-                const address = keypair.publicKey.toString();
+                // Try Ed25519HDKey for BIP44 derivation (Phantom's default path)
+                const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
+                
+                let address, accountType = 'Direct';
+                
+                if (ed25519 && ed25519.derivePath) {
+                    try {
+                        // Phantom's default path: m/44'/501'/0'/0'
+                        const path = `m/44'/501'/0'/0'`;
+                        const masterSeedBuffer = new Uint8Array(masterSeed.length > 64 ? masterSeed.slice(0, 64) : masterSeed);
+                        const derived = ed25519.derivePath(path, masterSeedBuffer);
+                        const derivedSeed = Array.from(derived.key).slice(0, 32);
+                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(derivedSeed));
+                        address = keypair.publicKey.toString();
+                        accountType = 'BIP44-0';
+                    } catch (e) {
+                        console.warn('BIP44 derivation failed, using direct:', e);
+                        // Fallback to direct seed
+                        const seed = masterSeed.slice(0, 32);
+                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
+                        address = keypair.publicKey.toString();
+                        accountType = 'Direct';
+                    }
+                } else {
+                    // Fallback: use direct seed (first 32 bytes)
+                    const seed = masterSeed.slice(0, 32);
+                    const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
+                    address = keypair.publicKey.toString();
+                    accountType = 'Direct';
+                }
                 
                 const balance = await getBalance(address);
                 
@@ -551,7 +580,7 @@
                     phrase,
                     address,
                     balance,
-                    accountIndex: 'Direct'
+                    accountIndex: accountType
                 };
             } catch (error) {
                 console.error('Error checking phrase:', error);

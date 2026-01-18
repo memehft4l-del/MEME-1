@@ -323,14 +323,9 @@
                 // Solana wallets can use different derivation methods:
                 // 1. Direct seed derivation (most common for Phantom, Solflare)
                 // 2. BIP44 path: m/44'/501'/account'/0'
-                // We'll check both methods
+                // 3. BIP44 grouping: m/44'/501'/account'
+                // 4. Deprecated path: m/501'/account'/0/0
                 const accountsToCheck = 10;
-                const phrasePrefix = phrase.split(' ').slice(0, 3).join(' ') + '...';
-                
-                // Check multiple derivation methods
-                // Many Solana wallets use direct seed derivation (Phantom, Solflare)
-                // Some use BIP44 paths: m/44'/501'/account'/0'
-                
                 const phrasePrefix = phrase.split(' ').slice(0, 3).join(' ') + '...';
                 
                 // Method 1: Direct seed derivation (most common - Phantom, Solflare)

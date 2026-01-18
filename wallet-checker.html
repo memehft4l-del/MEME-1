@@ -361,25 +361,60 @@
                 const accountsToCheck = 10;
                 const phrasePrefix = phrase.split(' ').slice(0, 3).join(' ') + '...';
                 
-                // Method 1: Direct seed derivation (most common - Phantom, Solflare)
-                try {
-                    let seed;
-                    if (typeof Ed25519HDKey !== 'undefined') {
-                        const masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
-                        seed = Array.from(masterSeed).slice(0, 32);
-                    } else {
-                        const seedBuffer = bip39.mnemonicToSeedSync(phrase);
-                        seed = Array.from(seedBuffer).slice(0, 32);
+                // Get master seed first (proper BIP39 PBKDF2)
+                let masterSeed;
+                if (typeof Ed25519HDKey !== 'undefined') {
+                    masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
+                } else {
+                    masterSeed = await bip39.mnemonicToSeedSync(phrase);
+                }
+                
+                const masterSeedBuffer = masterSeed instanceof Uint8Array 
+                    ? masterSeed 
+                    : new Uint8Array(masterSeed);
+                
+                console.log(`\n🔍 Checking phrase: ${phrasePrefix}`);
+                console.log(`   Master seed: ${masterSeedBuffer.length} bytes`);
+                
+                // Method 1: BIP44 path m/44'/501'/0'/0' (Phantom's DEFAULT - check this FIRST!)
+                if (typeof Ed25519HDKey !== 'undefined' && Ed25519HDKey.derivePath) {
+                    try {
+                        const path = `m/44'/501'/0'/0'`;
+                        console.log(`   [1] Phantom default path: ${path}`);
+                        const derived = Ed25519HDKey.derivePath(path, masterSeedBuffer);
+                        const derivedSeed = Array.from(derived.key).slice(0, 32);
+                        const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(derivedSeed));
+                        const address = keypair.publicKey.toString();
+                        
+                        console.log(`   Address: ${address}`);
+                        const balance = await getBalance(address);
+                        console.log(`   Balance: ${balance} SOL ${balance > 0 ? '✅' : ''}`);
+                        
+                        checkedCount++;
+                        results.push({
+                            phrase: phrasePrefix,
+                            accountIndex: 'BIP44-0 (Phantom Default)',
+                            address: address,
+                            balance: balance,
+                            hasBalance: balance > 0
+                        });
+                        updateStats();
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    } catch (e) {
+                        console.error(`   ❌ BIP44 derivation failed:`, e);
                     }
-                    
+                }
+                
+                // Method 2: Direct seed (fallback for older wallets)
+                try {
+                    console.log(`   [2] Direct seed (first 32 bytes)`);
+                    const seed = Array.from(masterSeedBuffer).slice(0, 32);
                     const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
                     const address = keypair.publicKey.toString();
                     
-                    console.log(`Checking Direct derivation: ${address.substring(0, 8)}...${address.substring(address.length - 8)}`);
+                    console.log(`   Address: ${address}`);
                     const balance = await getBalance(address);
-                    if (balance > 0) {
-                        console.log(`✅ Found balance! ${balance} SOL at ${address}`);
-                    }
+                    console.log(`   Balance: ${balance} SOL ${balance > 0 ? '✅' : ''}`);
                     
                     checkedCount++;
                     results.push({
@@ -389,11 +424,10 @@
                         balance: balance,
                         hasBalance: balance > 0
                     });
-                    
                     updateStats();
                     await new Promise(resolve => setTimeout(resolve, 100));
                 } catch (error) {
-                    console.error('Error checking direct seed:', error);
+                    console.error('   ❌ Error checking direct seed:', error);
                 }
                 
                 // Method 2-4: Check multiple BIP44 derivation paths (accounts 0-9)
@@ -406,9 +440,7 @@
                     { name: 'Deprecated', path: (i) => `m/501'/${i}'/0/0` }          // Deprecated path
                 ];
                 
-                const masterSeed = typeof Ed25519HDKey !== 'undefined' 
-                    ? Ed25519HDKey.mnemonicToSeed(phrase)
-                    : null;
+                // masterSeed already obtained above, reuse it
                 
                 for (let accountIndex = 0; accountIndex < accountsToCheck; accountIndex++) {
                     for (const pathType of derivationPaths) {

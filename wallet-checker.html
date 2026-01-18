@@ -511,6 +511,7 @@
         
         async function getBalance(address) {
             try {
+                console.log(`   📡 Fetching balance for ${address.substring(0, 8)}...`);
                 const response = await fetch(HELIUS_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -523,14 +524,15 @@
                 });
                 
                 if (!response.ok) {
-                    console.error(`Balance API HTTP error: ${response.status} ${response.statusText} for ${address.substring(0, 8)}...`);
+                    console.error(`   ❌ HTTP error: ${response.status} ${response.statusText}`);
                     return 0;
                 }
                 
                 const data = await response.json();
+                console.log(`   📦 API response:`, data);
                 
                 if (data.error) {
-                    console.error(`Balance API error for ${address.substring(0, 8)}...:`, data.error);
+                    console.error(`   ❌ API error:`, data.error);
                     return 0;
                 }
                 
@@ -539,17 +541,19 @@
                     const balanceLamports = parseInt(data.result);
                     const balanceSOL = balanceLamports / 1e9;
                     
+                    console.log(`   💰 Balance: ${balanceLamports} lamports = ${balanceSOL.toFixed(4)} SOL`);
+                    
                     if (balanceSOL > 0) {
-                        console.log(`✅ Found balance: ${balanceSOL.toFixed(4)} SOL at ${address}`);
+                        console.log(`   ✅ Found balance: ${balanceSOL.toFixed(4)} SOL at ${address}`);
                     }
                     
                     return balanceSOL;
                 }
                 
-                console.warn(`No result in API response for ${address.substring(0, 8)}...`);
+                console.warn(`   ⚠️ No result in API response`);
                 return 0;
             } catch (error) {
-                console.error(`Error fetching balance for ${address.substring(0, 8)}...:`, error);
+                console.error(`   ❌ Error fetching balance:`, error);
                 return 0;
             }
         }

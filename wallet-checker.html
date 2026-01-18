@@ -352,16 +352,10 @@
                     throw new Error('Invalid recovery phrase');
                 }
                 
-                // Check multiple accounts (derivation paths) for this phrase
-                // Solana wallets can use different derivation methods:
-                // 1. Direct seed derivation (most common for Phantom, Solflare)
-                // 2. BIP44 path: m/44'/501'/account'/0'
-                // 3. BIP44 grouping: m/44'/501'/account'
-                // 4. Deprecated path: m/501'/account'/0/0
                 const accountsToCheck = 10;
                 const phrasePrefix = phrase.split(' ').slice(0, 3).join(' ') + '...';
                 
-                // Get master seed first (proper BIP39 PBKDF2)
+                // Step 1: Derive master seed from recovery phrase (BIP39 PBKDF2)
                 let masterSeed;
                 if (typeof Ed25519HDKey !== 'undefined') {
                     masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
@@ -373,8 +367,10 @@
                     ? masterSeed 
                     : new Uint8Array(masterSeed);
                 
-                console.log(`\n🔍 Checking phrase: ${phrasePrefix}`);
-                console.log(`   Master seed: ${masterSeedBuffer.length} bytes`);
+                console.log(`\n🔍 Recovery Phrase: ${phrase}`);
+                console.log(`   Master seed derived: ${masterSeedBuffer.length} bytes`);
+                console.log(`\n📋 DERIVED ADDRESSES (compare with Phantom):`);
+                console.log(`   ==========================================`);
                 
                 // Method 1: BIP44 path m/44'/501'/0'/0' (Phantom's DEFAULT - check this FIRST!)
                 if (typeof Ed25519HDKey !== 'undefined' && Ed25519HDKey.derivePath) {

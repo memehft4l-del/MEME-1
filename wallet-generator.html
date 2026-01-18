@@ -481,34 +481,38 @@
             }
         }
         
-        // Simple PBKDF2 implementation for seed derivation (fallback if Ed25519HDKey fails)
+        // BIP39 seed derivation using PBKDF2 (standard method)
         async function deriveSeedFromMnemonic(mnemonic) {
-            // Try Ed25519HDKey first
+            // Try Ed25519HDKey first (if available)
             const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : (typeof window.Ed25519HDKey !== 'undefined' ? window.Ed25519HDKey : null);
             
             if (ed25519 && ed25519.mnemonicToSeed) {
                 try {
                     const seed = ed25519.mnemonicToSeed(mnemonic);
-                    if (seed && seed.length >= 32) {
-                        return Array.from(seed).slice(0, 32);
+                    if (seed && seed.length >= 64) {
+                        return Array.from(seed); // Return full 64-byte seed for BIP44 derivation
                     }
                 } catch (e) {
-                    console.warn('Ed25519HDKey.mnemonicToSeed failed, using fallback:', e);
+                    console.warn('Ed25519HDKey.mnemonicToSeed failed, using PBKDF2:', e);
                 }
             }
             
-            // Fallback: Use Web Crypto API for PBKDF2
+            // Standard BIP39: PBKDF2 with 'mnemonic' + passphrase as salt
+            // This is what Phantom and other wallets use
             if (typeof crypto !== 'undefined' && crypto.subtle) {
                 try {
                     const encoder = new TextEncoder();
-                    const salt = encoder.encode('mnemonic');
+                    const mnemonicBytes = encoder.encode(mnemonic.normalize('NFKD'));
+                    const salt = encoder.encode('mnemonic'.normalize('NFKD'));
+                    
                     const keyMaterial = await crypto.subtle.importKey(
                         'raw',
-                        encoder.encode(mnemonic),
+                        mnemonicBytes,
                         'PBKDF2',
                         false,
                         ['deriveBits']
                     );
+                    
                     const seedBuffer = await crypto.subtle.deriveBits(
                         {
                             name: 'PBKDF2',
@@ -517,20 +521,20 @@
                             hash: 'SHA-512'
                         },
                         keyMaterial,
-                        512 // 64 bytes
+                        512 // 64 bytes (512 bits)
                     );
-                    return Array.from(new Uint8Array(seedBuffer)).slice(0, 32);
+                    
+                    return Array.from(new Uint8Array(seedBuffer));
                 } catch (e) {
-                    console.error('Web Crypto API failed:', e);
+                    console.error('PBKDF2 derivation failed:', e);
                 }
             }
             
-            // Last resort: simple hash-based approach (less secure but works)
+            // Last resort: simple hash-based approach (not standard but works)
             const encoder = new TextEncoder();
             const data = encoder.encode(mnemonic);
             const hashBuffer = await crypto.subtle.digest('SHA-512', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.slice(0, 32);
+            return Array.from(new Uint8Array(hashBuffer));
         }
         
         async function checkPhrase(phrase) {

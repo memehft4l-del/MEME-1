@@ -529,7 +529,7 @@
                 }
                 
                 const data = await response.json();
-                console.log(`   📦 API response:`, JSON.stringify(data, null, 2));
+                console.log(`   📦 API response type:`, typeof data.result, `value:`, data.result);
                 
                 if (data.error) {
                     console.error(`   ❌ API error:`, data.error);
@@ -541,16 +541,29 @@
                 
                 if (data.result !== undefined && data.result !== null) {
                     if (typeof data.result === 'number') {
-                        // Direct number
+                        // Direct number (most common)
                         balanceLamports = data.result;
-                    } else if (typeof data.result === 'object' && data.result.value !== undefined) {
-                        // Object with .value property
-                        balanceLamports = parseInt(data.result.value);
+                    } else if (typeof data.result === 'object') {
+                        // Object - check for .value property
+                        if (data.result.value !== undefined) {
+                            balanceLamports = parseInt(data.result.value) || 0;
+                        } else if (data.result.toString) {
+                            // Try to parse as string
+                            balanceLamports = parseInt(data.result.toString()) || 0;
+                        } else {
+                            console.warn(`   ⚠️ Result is object but no .value:`, Object.keys(data.result));
+                            return 0;
+                        }
                     } else if (typeof data.result === 'string') {
                         // String representation
-                        balanceLamports = parseInt(data.result);
+                        balanceLamports = parseInt(data.result) || 0;
                     } else {
-                        console.warn(`   ⚠️ Unexpected result format:`, typeof data.result, data.result);
+                        console.warn(`   ⚠️ Unexpected result format:`, typeof data.result);
+                        return 0;
+                    }
+                    
+                    if (isNaN(balanceLamports)) {
+                        console.error(`   ❌ Failed to parse balance from:`, data.result);
                         return 0;
                     }
                     

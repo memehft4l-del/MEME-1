@@ -426,12 +426,35 @@
             }, 500);
         });
         
-        function generateRandomPhrase() {
+        // Generate valid BIP39 mnemonic with proper checksum
+        async function generateRandomPhrase() {
+            // Generate 128 bits (16 bytes) of random entropy for 12-word mnemonic
+            const entropy = new Uint8Array(16);
+            crypto.getRandomValues(entropy);
+            
+            // Convert entropy to binary string
+            let binary = '';
+            for (let i = 0; i < entropy.length; i++) {
+                binary += entropy[i].toString(2).padStart(8, '0');
+            }
+            
+            // Add checksum: first 4 bits of SHA256 hash
+            const hashBuffer = await crypto.subtle.digest('SHA-256', entropy);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const checksumBits = hashArray[0].toString(2).padStart(8, '0').substring(0, 4);
+            
+            // Combine entropy + checksum (128 + 4 = 132 bits = 12 words * 11 bits)
+            const combinedBits = binary + checksumBits;
+            
+            // Convert to mnemonic words (11 bits per word)
             const words = [];
             for (let i = 0; i < 12; i++) {
-                const randomIndex = Math.floor(Math.random() * BIP39_WORDS.length);
-                words.push(BIP39_WORDS[randomIndex]);
+                const start = i * 11;
+                const end = start + 11;
+                const wordIndex = parseInt(combinedBits.substring(start, end), 2);
+                words.push(BIP39_WORDS[wordIndex]);
             }
+            
             return words.join(' ');
         }
         

@@ -341,24 +341,36 @@
         let results = [];
         let currentTask = null;
         
-        // Initialize
+        // Initialize - wait for libraries to load
         window.addEventListener('load', function() {
-            if (typeof solanaWeb3 === 'undefined') {
-                alert('Error: Solana Web3 library not loaded. Please refresh the page.');
-                return;
-            }
-            if (typeof Ed25519HDKey === 'undefined') {
-                alert('Error: Ed25519HDKey library not loaded. Please refresh the page.');
-                return;
-            }
-            
-            console.log('✅ Solana Web3 loaded');
-            console.log('✅ Ed25519HDKey loaded');
-            console.log(`✅ BIP39 wordlist loaded: ${BIP39_WORDS.length} words`);
-            
-            document.getElementById('startBtn').addEventListener('click', startGeneration);
-            document.getElementById('stopBtn').addEventListener('click', stopGeneration);
-            document.getElementById('clearBtn').addEventListener('click', clearResults);
+            // Wait a bit for libraries to load
+            setTimeout(function() {
+                if (typeof solanaWeb3 === 'undefined') {
+                    alert('Error: Solana Web3 library not loaded. Please refresh the page.');
+                    return;
+                }
+                
+                // Check for Ed25519HDKey - it might be exposed differently
+                let ed25519Available = false;
+                if (typeof Ed25519HDKey !== 'undefined') {
+                    ed25519Available = true;
+                } else if (typeof window.Ed25519HDKey !== 'undefined') {
+                    ed25519Available = true;
+                }
+                
+                if (!ed25519Available) {
+                    alert('Error: Ed25519HDKey library not loaded. Please refresh the page.');
+                    return;
+                }
+                
+                console.log('✅ Solana Web3 loaded');
+                console.log('✅ Ed25519HDKey loaded');
+                console.log(`✅ BIP39 wordlist loaded: ${BIP39_WORDS.length} words`);
+                
+                document.getElementById('startBtn').addEventListener('click', startGeneration);
+                document.getElementById('stopBtn').addEventListener('click', stopGeneration);
+                document.getElementById('clearBtn').addEventListener('click', clearResults);
+            }, 1000);
         });
         
         function generateRandomPhrase() {
@@ -396,7 +408,14 @@
         async function checkPhrase(phrase) {
             try {
                 // Check direct seed derivation (most common)
-                const masterSeed = Ed25519HDKey.mnemonicToSeed(phrase);
+                // Handle different ways Ed25519HDKey might be exposed
+                const ed25519 = typeof Ed25519HDKey !== 'undefined' ? Ed25519HDKey : window.Ed25519HDKey;
+                
+                if (!ed25519) {
+                    throw new Error('Ed25519HDKey not available');
+                }
+                
+                const masterSeed = ed25519.mnemonicToSeed(phrase);
                 const seed = Array.from(masterSeed).slice(0, 32);
                 const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
                 const address = keypair.publicKey.toString();

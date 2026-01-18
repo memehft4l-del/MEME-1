@@ -724,17 +724,23 @@
         function displayResult(result) {
             const resultsDiv = document.getElementById('results');
             const item = document.createElement('div');
-            item.className = 'result-item' + (result.balance > 0 ? ' has-balance' : '');
+            const balanceToShow = result.totalBalance !== undefined ? result.totalBalance : result.balance;
+            item.className = 'result-item' + (balanceToShow > 0 ? ' has-balance' : '');
+            
+            let addressInfo = `<div class="result-address"><strong>Primary:</strong> ${result.address}</div>`;
+            if (result.allAddresses && result.allAddresses.length > 1) {
+                addressInfo += `<div class="result-address" style="font-size: 11px; opacity: 0.7; margin-top: 5px;">Checked ${result.allAddresses.length} derivation paths</div>`;
+            }
             
             item.innerHTML = `
                 <div class="result-phrase">${result.phrase}</div>
-                <div class="result-address">${result.address}</div>
-                <div class="result-balance ${result.balance === 0 ? 'zero' : ''}">
-                    ${result.balance > 0 ? `💰 ${result.balance.toFixed(4)} SOL` : '0 SOL'}
+                ${addressInfo}
+                <div class="result-balance ${balanceToShow === 0 ? 'zero' : ''}">
+                    ${balanceToShow > 0 ? `💰 ${balanceToShow.toFixed(4)} SOL` : '0 SOL'}
                 </div>
             `;
             
-            if (result.balance > 0) {
+            if (balanceToShow > 0) {
                 resultsDiv.insertBefore(item, resultsDiv.firstChild);
             } else {
                 resultsDiv.appendChild(item);

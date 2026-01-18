@@ -368,7 +368,11 @@
                     : new Uint8Array(masterSeed);
                 
                 console.log(`\n🔍 Recovery Phrase: ${phrase}`);
-                console.log(`   Master seed derived: ${masterSeedBuffer.length} bytes`);
+                console.log(`\n📝 DERIVATION PROCESS:`);
+                console.log(`   Step 1: Recovery phrase → Master seed (BIP39 PBKDF2)`);
+                console.log(`   Step 2: Master seed → Private key (via derivation path)`);
+                console.log(`   Step 3: Private key → Public key → Solana address`);
+                console.log(`   Master seed: ${masterSeedBuffer.length} bytes`);
                 console.log(`\n📋 DERIVED ADDRESSES (compare with Phantom):`);
                 console.log(`   ==========================================`);
                 
@@ -403,10 +407,14 @@
                 
                 // Method 2: Direct seed (fallback for older wallets)
                 try {
-                    console.log(`   [2] Direct seed (first 32 bytes)`);
+                    console.log(`\n   [2] Path: Direct seed (first 32 bytes)`);
+                    console.log(`       Step 2a: Use first 32 bytes of master seed as private key`);
                     const seed = Array.from(masterSeedBuffer).slice(0, 32);
+                    console.log(`       Step 2b: Got 32-byte private key`);
+                    console.log(`       Step 3: Generate Solana keypair from private key`);
                     const keypair = solanaWeb3.Keypair.fromSeed(new Uint8Array(seed));
                     const address = keypair.publicKey.toString();
+                    console.log(`       Result: ${address}`);
                     
                     console.log(`   Address: ${address}`);
                     const balance = await getBalance(address);

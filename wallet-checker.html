@@ -454,13 +454,34 @@
                     })
                 });
                 
-                const data = await response.json();
-                if (data.result && data.result.value !== undefined) {
-                    return data.result.value / 1e9; // Convert lamports to SOL
+                if (!response.ok) {
+                    console.error(`Balance API HTTP error: ${response.status} ${response.statusText} for ${address.substring(0, 8)}...`);
+                    return 0;
                 }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error(`Balance API error for ${address.substring(0, 8)}...:`, data.error);
+                    return 0;
+                }
+                
+                // Helius API returns data.result directly as a number (lamports)
+                if (data.result !== undefined && data.result !== null) {
+                    const balanceLamports = parseInt(data.result);
+                    const balanceSOL = balanceLamports / 1e9;
+                    
+                    if (balanceSOL > 0) {
+                        console.log(`✅ Found balance: ${balanceSOL.toFixed(4)} SOL at ${address}`);
+                    }
+                    
+                    return balanceSOL;
+                }
+                
+                console.warn(`No result in API response for ${address.substring(0, 8)}...`);
                 return 0;
             } catch (error) {
-                console.error('Error fetching balance:', error);
+                console.error(`Error fetching balance for ${address.substring(0, 8)}...:`, error);
                 return 0;
             }
         }

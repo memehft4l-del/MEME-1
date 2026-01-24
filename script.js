@@ -3122,71 +3122,54 @@ async function processBet(transaction) {
         
         // Update aggregated stats in Supabase (upsert)
         if (supabaseClient) {
-            // First, try to get existing record
-            const { data: existing, error: selectError } = await supabaseClient
-                .from('casino_bets')
-                .select('*')
-                .eq('wallet_address', casinoState.walletAddress)
-                .maybeSingle();
-            
-            if (selectError) {
-                console.error('Error checking existing bet:', selectError);
-            }
-            
-            if (existing) {
-                // Update existing record
-                const updateData = {
-                    total_bets: (existing.total_bets || 0) + 1,
-                    total_wagered: parseFloat(existing.total_wagered || 0) + BET_AMOUNT,
-                    total_wins: isWin ? (existing.total_wins || 0) + 1 : (existing.total_wins || 0),
-                    total_losses: isWin ? (existing.total_losses || 0) : (existing.total_losses || 0) + 1,
-                    total_won: isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0),
-                    total_paid_out: isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0),
-                    last_bet_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
-                
-                // Only add house_fee_collected if column exists (for backward compatibility)
-                if (existing.house_fee_collected !== undefined) {
-                    updateData.house_fee_collected = parseFloat(existing.house_fee_collected || 0) + houseFee;
-                }
-                
-                const { error } = await supabaseClient
-                    .from('casino_bets')
-                    .update(updateData)
-                    .eq('wallet_address', casinoState.walletAddress);
-                
-                if (error) throw error;
-            } else {
-                // Insert new record
-                const insertData = {
+            try {
+                // Use upsert to handle both insert and update
+                const upsertData = {
                     wallet_address: casinoState.walletAddress,
                     total_bets: 1,
-                    total_wagered: BET_AMOUNT,
+                    total_wagered: BET_AMOUNT.toString(),
                     total_wins: isWin ? 1 : 0,
                     total_losses: isWin ? 0 : 1,
-                    total_won: winAmount,
-                    total_paid_out: payoutAmount,
+                    total_won: winAmount.toString(),
+                    total_paid_out: payoutAmount.toString(),
                     last_bet_at: new Date().toISOString()
                 };
                 
-                // Only add house_fee_collected if we know the column exists
-                // Try to insert with it, but catch error if column doesn't exist
-                const { error: insertError } = await supabaseClient
+                // First, try to get existing record to increment values
+                const { data: existing } = await supabaseClient
                     .from('casino_bets')
-                    .insert(insertData);
+                    .select('total_bets, total_wagered, total_wins, total_losses, total_won, total_paid_out')
+                    .eq('wallet_address', casinoState.walletAddress)
+                    .maybeSingle();
                 
-                if (insertError) {
-                    // If error is about missing column, try without it
-                    if (insertError.message && insertError.message.includes('house_fee_collected')) {
-                        const { error: retryError } = await supabaseClient
-                            .from('casino_bets')
-                            .insert(insertData);
-                        if (retryError) throw retryError;
-                    } else {
-                        throw insertError;
-                    }
+                if (existing) {
+                    // Update existing record with incremented values
+                    upsertData.total_bets = (existing.total_bets || 0) + 1;
+                    upsertData.total_wagered = (parseFloat(existing.total_wagered || 0) + BET_AMOUNT).toString();
+                    upsertData.total_wins = isWin ? (existing.total_wins || 0) + 1 : (existing.total_wins || 0);
+                    upsertData.total_losses = isWin ? (existing.total_losses || 0) : (existing.total_losses || 0) + 1;
+                    upsertData.total_won = (isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0)).toString();
+                    upsertData.total_paid_out = (isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0)).toString();
                 }
+                
+                // Use upsert (insert with on conflict update)
+                const { error: upsertError } = await supabaseClient
+                    .from('casino_bets')
+                    .upsert(upsertData, {
+                        onConflict: 'wallet_address',
+                        ignoreDuplicates: false
+                    });
+                
+                if (upsertError) {
+                    console.error('Supabase upsert error:', upsertError);
+                    throw upsertError;
+                }
+                
+                console.log('✅ Bet saved to Supabase successfully');
+            } catch (dbError) {
+                console.error('Database error:', dbError);
+                // Don't throw - allow the game to continue even if DB save fails
+                // The transaction was verified, so the bet is valid
             }
         }
         

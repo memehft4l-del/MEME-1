@@ -67,6 +67,9 @@ function initializeApp() {
         console.error('Error stack:', error.stack);
     }
     
+    // Initialize Supabase FIRST (before everything else that needs it)
+    initSupabase();
+    
     // Initialize UI
     try {
         initUI();
@@ -92,10 +95,7 @@ function initializeApp() {
         } catch (error) {
             console.error('❌ Leaderboard initialization failed:', error);
         }
-    }, 1000);
-    
-    // Initialize Supabase FIRST to get token address, then start market cap updates
-    initSupabase();
+    }, 1500);
     
     // Load config from Supabase (async), then start market cap updates
     loadConfigFromSupabase().then(() => {

@@ -62,6 +62,32 @@ body > * {
     overflow: hidden;
     will-change: transform;
     transform: translateZ(0);
+    animation: cardFloat 6s ease-in-out infinite;
+}
+
+.stat-card:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.stat-card:nth-child(2) {
+    animation-delay: 1s;
+}
+
+.stat-card:nth-child(3) {
+    animation-delay: 2s;
+}
+
+.stat-card:nth-child(4) {
+    animation-delay: 1.5s;
+}
+
+@keyframes cardFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
 }
 
 .stat-card::before {
@@ -143,6 +169,29 @@ body > * {
     transition: all 0.3s ease;
     will-change: transform;
     transform: translateZ(0);
+    position: relative;
+    overflow: hidden;
+}
+
+.panel-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(74, 222, 128, 0.1) 0%, transparent 70%);
+    animation: panelShimmer 8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes panelShimmer {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    50% {
+        transform: translate(50%, 50%) rotate(180deg);
+    }
 }
 
 .panel-section:hover {
@@ -286,6 +335,77 @@ body > * {
     overflow: hidden;
     position: relative;
     border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
+    animation: canvasGlow 3s ease-in-out infinite;
+}
+
+@keyframes canvasGlow {
+    0%, 100% {
+        box-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 50px rgba(102, 126, 234, 0.5);
+    }
+}
+
+.canvas-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.pulse-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: #4ade80;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0.7;
+    }
+}
+
+.view-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 0;
+    animation: fadeInHint 2s ease-in-out 1s forwards;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes fadeInHint {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
 #pepe-canvas {

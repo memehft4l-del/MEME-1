@@ -11,6 +11,8 @@ let raycaster = null;
 let mouse = new THREE.Vector2();
 let hasRealData = false; // Track if we've successfully fetched real data
 let realDataUpdateInterval = null;
+let photonParticles = null; // Photon particles around character
+let lastCameraDistance = 5;
 
 // Easter egg variables
 let konamiCode = [];
@@ -179,6 +181,9 @@ function initScene() {
     // Create BOBO character
     createBoboCharacter();
     
+    // Create photon particle system around character
+    createPhotonParticles();
+    
     // Initialize raycaster for click detection
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -338,6 +343,66 @@ function createBoboCharacter() {
     penisMesh.tip = tip;
     
     scene.add(pepeGroup);
+}
+
+// Create photon particles that appear when viewing the character
+function createPhotonParticles() {
+    const particleCount = 200;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    const sizes = new Float32Array(particleCount);
+    
+    const color1 = new THREE.Color(0x4ade80); // Green
+    const color2 = new THREE.Color(0xff6b6b); // Red/Pink
+    const color3 = new THREE.Color(0x667eea); // Purple
+    
+    for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        
+        // Position particles in a sphere around the character
+        const radius = 3 + Math.random() * 4;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        
+        positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+        positions[i3 + 2] = radius * Math.cos(phi);
+        
+        // Random colors
+        const colorChoice = Math.random();
+        let color;
+        if (colorChoice < 0.33) {
+            color = color1;
+        } else if (colorChoice < 0.66) {
+            color = color2;
+        } else {
+            color = color3;
+        }
+        
+        colors[i3] = color.r;
+        colors[i3 + 1] = color.g;
+        colors[i3 + 2] = color.b;
+        
+        sizes[i] = Math.random() * 0.1 + 0.05;
+    }
+    
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    
+    const material = new THREE.PointsMaterial({
+        size: 0.15,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+    });
+    
+    photonParticles = new THREE.Points(geometry, material);
+    photonParticles.position.set(0, 0, 0);
+    scene.add(photonParticles);
 }
 
 // Update penis size based on market cap - More sensitive with longer range
@@ -1057,9 +1122,51 @@ function animate() {
         controls.update();
     }
     
+    // Calculate camera distance for photon visibility
+    if (camera && pepeGroup) {
+        const cameraDistance = camera.position.distanceTo(pepeGroup.position);
+        lastCameraDistance = cameraDistance;
+        
+        // Update photon particles visibility based on camera distance
+        if (photonParticles) {
+            // More visible when closer, fade when far
+            const visibility = Math.max(0, Math.min(1, (8 - cameraDistance) / 4));
+            photonParticles.material.opacity = visibility * 0.8;
+            
+            // Animate photon particles
+            const positions = photonParticles.geometry.attributes.position.array;
+            const time = Date.now() * 0.001;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                // Create orbiting motion
+                const radius = Math.sqrt(
+                    positions[i] * positions[i] + 
+                    positions[i + 1] * positions[i + 1] + 
+                    positions[i + 2] * positions[i + 2]
+                );
+                
+                const theta = Math.atan2(positions[i + 1], positions[i]) + time * 0.1;
+                const phi = Math.acos(positions[i + 2] / radius) + time * 0.05;
+                
+                positions[i] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i + 2] = radius * Math.cos(phi);
+            }
+            
+            photonParticles.geometry.attributes.position.needsUpdate = true;
+            photonParticles.rotation.y += 0.002;
+        }
+    }
+    
     // Subtle idle animation (breathing effect) - only if not dragging
-    if (pepeGroup && (!controls || !controls.enabled)) {
-        pepeGroup.rotation.y = Math.sin(Date.now() / 3000) * 0.05;
+    if (pepeGroup) {
+        const breathing = Math.sin(Date.now() / 2000) * 0.02;
+        pepeGroup.scale.set(1 + breathing, 1 + breathing, 1 + breathing);
+        
+        // Subtle rotation
+        if (!controls || !controls.enabled) {
+            pepeGroup.rotation.y = Math.sin(Date.now() / 3000) * 0.05;
+        }
     }
     
     renderer.render(scene, camera);

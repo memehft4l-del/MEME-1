@@ -1716,9 +1716,9 @@ function hitTarget() {
 }
 
 function completeLevel() {
-    // Any level completion (3, 4, or 5) allows airdrop claim
-    if (gameState.level >= 3) {
-        // Game won! (completed at least level 3)
+    // Only level 5 completion allows airdrop claim
+    if (gameState.level >= 5) {
+        // Game won! (completed level 5)
         gameState.gameActive = false;
         stopTimer();
         if (gameState.targetTimer) {
@@ -1738,7 +1738,7 @@ function completeLevel() {
         if (instructions) {
             instructions.textContent = `Level ${gameState.level - 1} Complete! Starting Level ${gameState.level}...`;
             setTimeout(() => {
-                instructions.textContent = `Hit ${gameState.targetsNeeded} targets! They appear faster each level!`;
+                instructions.textContent = `Hit ${gameState.targetsNeeded} targets! Complete Level 5 to win SOL airdrop!`;
             }, 2000);
         }
         
@@ -1809,7 +1809,7 @@ function updateGameDisplay() {
     // Update instructions
     const instructionsEl = document.getElementById('gameInstructions');
     if (instructionsEl && gameState.gameActive) {
-        instructionsEl.textContent = `Hit ${gameState.targetsNeeded} targets! Progress: ${gameState.targetsHit}/${gameState.targetsNeeded}`;
+        instructionsEl.textContent = `Level ${gameState.level}: Hit ${gameState.targetsNeeded} targets! Progress: ${gameState.targetsHit}/${gameState.targetsNeeded} (Complete Level 5 to win!)`;
     }
 }
 
@@ -1837,8 +1837,8 @@ async function claimAirdrop() {
         return;
     }
     
-    if (gameState.level < 3) {
-        alert('You must complete at least level 3 to claim the airdrop!');
+    if (gameState.level < 5) {
+        alert('You must complete level 5 to claim the airdrop!');
         return;
     }
     

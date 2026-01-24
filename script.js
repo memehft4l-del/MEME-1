@@ -2835,10 +2835,27 @@ async function verifyAndPlayBet() {
     
     try {
         // Wait a moment for transaction to be confirmed
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (statusEl) {
+            statusEl.textContent = 'Waiting for transaction confirmation... (checking every 3 seconds)';
+            statusEl.className = 'bet-status pending';
+        }
         
-        // Check for recent transaction from user's wallet to dev wallet
-        const transaction = await findBetTransaction();
+        // Try multiple times with delays
+        let transaction = null;
+        let attempts = 0;
+        const maxAttempts = 10; // Check for up to 30 seconds
+        
+        while (!transaction && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            transaction = await findBetTransaction();
+            attempts++;
+            
+            if (!transaction && statusEl) {
+                statusEl.textContent = `Checking for transaction... (attempt ${attempts}/${maxAttempts})`;
+            }
+        }
+        
+        if (!transaction) {
         
         if (!transaction) {
             if (statusEl) {
@@ -2930,37 +2947,48 @@ async function findBetTransaction() {
             return null;
         }
         
-        // Check recent transactions (last 30, within last 10 minutes)
+        // Check recent transactions (last 50, within last 30 minutes)
         const now = Math.floor(Date.now() / 1000);
-        const tenMinutesAgo = now - 600;
+        const thirtyMinutesAgo = now - 1800;
         
-        for (const sigInfo of data.result.slice(0, 30)) {
-            // Skip if transaction is too old (more than 10 minutes)
-            if (sigInfo.blockTime && sigInfo.blockTime < tenMinutesAgo) {
+        console.log(`Checking ${data.result.length} transactions from last 30 minutes`);
+        
+        for (const sigInfo of data.result.slice(0, 50)) {
+            // Skip if transaction is too old (more than 30 minutes)
+            if (sigInfo.blockTime && sigInfo.blockTime < thirtyMinutesAgo) {
                 continue;
             }
             
-            console.log('Checking transaction:', sigInfo.signature);
+            console.log('Checking transaction:', sigInfo.signature.substring(0, 20) + '...');
             const txDetails = await getCasinoTransactionDetails(sigInfo.signature);
-            console.log('Transaction details:', txDetails);
             
-            if (txDetails && 
-                txDetails.from === casinoState.walletAddress &&
-                txDetails.to === DEV_WALLET &&
-                txDetails.amount >= BET_AMOUNT * 0.99 && // Allow small rounding
-                txDetails.amount <= BET_AMOUNT * 1.01) {
-                console.log('Found matching transaction!', txDetails);
-                return {
-                    signature: sigInfo.signature,
+            if (txDetails) {
+                console.log('Transaction details:', {
+                    from: txDetails.from,
+                    to: txDetails.to,
                     amount: txDetails.amount,
-                    timestamp: sigInfo.blockTime || now
-                };
+                    matchesFrom: txDetails.from === casinoState.walletAddress,
+                    matchesTo: txDetails.to === DEV_WALLET,
+                    amountOk: txDetails.amount >= BET_AMOUNT * 0.99 && txDetails.amount <= BET_AMOUNT * 1.01
+                });
+                
+                if (txDetails.from === casinoState.walletAddress &&
+                    txDetails.to === DEV_WALLET &&
+                    txDetails.amount >= BET_AMOUNT * 0.99 && // Allow small rounding
+                    txDetails.amount <= BET_AMOUNT * 1.01) {
+                    console.log('✅ Found matching transaction!', txDetails);
+                    return {
+                        signature: sigInfo.signature,
+                        amount: txDetails.amount,
+                        timestamp: sigInfo.blockTime || now
+                    };
+                }
             }
             
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        console.log('No matching transaction found');
+        console.log('❌ No matching transaction found');
         return null;
     } catch (error) {
         console.error('Error finding transaction:', error);

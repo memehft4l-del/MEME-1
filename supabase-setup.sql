@@ -89,6 +89,11 @@ CREATE POLICY "Allow public insert" ON game_participants
     FOR INSERT
     WITH CHECK (true);
 
+-- Allow public read for game_participants (for leaderboard/statistics)
+CREATE POLICY "Allow public read" ON game_participants
+    FOR SELECT
+    USING (true);
+
 -- Allow public insert for game_winners (winners can claim)
 CREATE POLICY "Allow public insert" ON game_winners
     FOR INSERT

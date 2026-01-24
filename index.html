@@ -326,9 +326,17 @@
                                 <h4>🎰 Coin Flip Casino</h4>
                                 <p class="bet-info">Bet Amount: <strong>0.1 SOL</strong> (Fixed)</p>
                                 <p class="bet-info">Payout: <strong>2x</strong></p>
-                                <p class="bet-instructions" style="background: rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.4);">
-                                    ⚠️ TEST MODE - Click "Flip Coin" to play (no real SOL required)
+                                <p class="bet-instructions">
+                                    Send exactly 0.1 SOL to the address below, then click "Verify Bet & Flip"
                                 </p>
+                                
+                                <div class="dev-wallet-display">
+                                    <div class="wallet-address-box">
+                                        <span class="wallet-label">Send SOL to:</span>
+                                        <span class="wallet-address" id="devWalletAddress">7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN</span>
+                                        <button class="copy-btn" id="copyWalletBtn">📋 Copy</button>
+                                    </div>
+                                </div>
                                 
                                 <div class="coin-flip-container">
                                     <div id="coin" class="coin">
@@ -338,7 +346,7 @@
                                     <div id="coinResult" class="coin-result"></div>
                                 </div>
                                 
-                                <button id="verifyBetBtn" class="verify-bet-btn">Flip Coin</button>
+                                <button id="verifyBetBtn" class="verify-bet-btn">Verify Bet & Flip</button>
                                 <div id="betStatus" class="bet-status"></div>
                             </div>
                             

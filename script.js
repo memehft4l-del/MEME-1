@@ -2793,26 +2793,67 @@ async function verifyAndPlayBet() {
     
     if (verifyBtn) verifyBtn.disabled = true;
     if (statusEl) {
-        statusEl.textContent = 'Processing bet...';
+        statusEl.textContent = 'Checking for bet transaction...';
         statusEl.className = 'bet-status pending';
     }
     
     try {
-        // TEST MODE: Simulate a bet without requiring actual transaction
-        // Generate a fake transaction signature for testing
-        const testTransaction = {
-            signature: 'test_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-            amount: BET_AMOUNT,
-            timestamp: Math.floor(Date.now() / 1000)
-        };
+        // Check for recent transaction from user's wallet to dev wallet
+        const transaction = await findBetTransaction();
         
-        // Process the bet (test mode)
-        await processBet(testTransaction);
+        if (!transaction) {
+            if (statusEl) {
+                statusEl.textContent = '❌ No bet found. Please send exactly 0.1 SOL to the address above first.';
+                statusEl.className = 'bet-status error';
+            }
+            if (verifyBtn) verifyBtn.disabled = false;
+            return;
+        }
+        
+        // Verify amount is exactly 0.1 SOL
+        const betAmount = transaction.amount;
+        if (Math.abs(betAmount - BET_AMOUNT) > 0.001) {
+            if (statusEl) {
+                statusEl.textContent = `❌ Invalid bet amount: ${betAmount.toFixed(4)} SOL. Must be exactly 0.1 SOL.`;
+                statusEl.className = 'bet-status error';
+            }
+            if (verifyBtn) verifyBtn.disabled = false;
+            return;
+        }
+        
+        // Check if this transaction was already used
+        if (supabaseClient) {
+            const { data: existingBet } = await supabaseClient
+                .from('casino_bets')
+                .select('*')
+                .eq('wallet_address', casinoState.walletAddress)
+                .single();
+            
+            // Check if transaction signature matches (if we stored it)
+            // For now, we'll check by wallet and recent timestamp
+            if (existingBet && existingBet.last_bet_at) {
+                const lastBetTime = new Date(existingBet.last_bet_at).getTime();
+                const txTime = transaction.timestamp * 1000;
+                // If bet was within last 5 minutes and same amount, might be duplicate
+                if (Math.abs(txTime - lastBetTime) < 300000 && Math.abs(betAmount - BET_AMOUNT) < 0.001) {
+                    // Check if we've already processed a bet very recently
+                    if (statusEl) {
+                        statusEl.textContent = '❌ This transaction may have already been processed. Please wait a moment or use a new transaction.';
+                        statusEl.className = 'bet-status error';
+                    }
+                    if (verifyBtn) verifyBtn.disabled = false;
+                    return;
+                }
+            }
+        }
+        
+        // Process the bet
+        await processBet(transaction);
         
     } catch (error) {
-        console.error('Error processing bet:', error);
+        console.error('Error verifying bet:', error);
         if (statusEl) {
-            statusEl.textContent = '❌ Error processing bet. Please try again.';
+            statusEl.textContent = '❌ Error verifying bet. Please try again.';
             statusEl.className = 'bet-status error';
         }
         if (verifyBtn) verifyBtn.disabled = false;
@@ -3051,10 +3092,10 @@ function showCasinoResult(isWin, payoutAmount, houseFee) {
         if (isWin) {
             html += `<div style="color: #4ade80; margin-top: 10px;">Payout: <strong>${payoutAmount.toFixed(4)} SOL</strong></div>`;
             html += `<div style="color: #4ade80;">Profit: <strong>${(payoutAmount - BET_AMOUNT).toFixed(4)} SOL</strong></div>`;
+            html += '<div style="margin-top: 10px; font-size: 12px; opacity: 0.7;">Payout will be sent to your wallet address</div>';
         } else {
             html += `<div style="color: #ef4444; margin-top: 10px;">Loss: <strong>${BET_AMOUNT} SOL</strong></div>`;
         }
-        html += '<div style="margin-top: 10px; font-size: 12px; opacity: 0.7;">⚠️ TEST MODE - No real SOL required</div>';
         html += '</div>';
         payoutInfo.innerHTML = html;
     }

@@ -84,13 +84,15 @@ function initializeApp() {
         console.error('❌ Challenge game initialization failed:', error);
     }
     
-    // Initialize leaderboard
-    try {
-        initLeaderboard();
-        console.log('✅ Leaderboard initialized');
-    } catch (error) {
-        console.error('❌ Leaderboard initialization failed:', error);
-    }
+    // Initialize leaderboard (wait a bit for Supabase to be ready)
+    setTimeout(() => {
+        try {
+            initLeaderboard();
+            console.log('✅ Leaderboard initialized');
+        } catch (error) {
+            console.error('❌ Leaderboard initialization failed:', error);
+        }
+    }, 1000);
     
     // Initialize Supabase FIRST to get token address, then start market cap updates
     initSupabase();

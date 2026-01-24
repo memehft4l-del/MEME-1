@@ -143,6 +143,7 @@ ALTER TABLE casino_bets ENABLE ROW LEVEL SECURITY;
 -- Drop existing policies if they exist (to avoid conflicts when re-running)
 DROP POLICY IF EXISTS "Allow public insert" ON casino_bets;
 DROP POLICY IF EXISTS "Allow public read" ON casino_bets;
+DROP POLICY IF EXISTS "Allow public update" ON casino_bets;
 
 -- Allow public insert for casino_bets (players can place bets)
 CREATE POLICY "Allow public insert" ON casino_bets
@@ -153,6 +154,12 @@ CREATE POLICY "Allow public insert" ON casino_bets
 CREATE POLICY "Allow public read" ON casino_bets
     FOR SELECT
     USING (true);
+
+-- Allow public update for casino_bets (to aggregate stats)
+CREATE POLICY "Allow public update" ON casino_bets
+    FOR UPDATE
+    USING (true)
+    WITH CHECK (true);
 
 -- Create trigger to update updated_at on casino_bets
 CREATE TRIGGER update_casino_bets_updated_at BEFORE UPDATE ON casino_bets

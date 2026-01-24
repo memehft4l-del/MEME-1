@@ -2163,7 +2163,8 @@ async function calculateSolPaidOut() {
             const batchResults = await Promise.all(batchPromises);
             
             batchResults.forEach(amount => {
-                if (amount > 0) {
+                // Only count transfers less than 0.1 SOL (airdrops)
+                if (amount > 0 && amount < 0.1) {
                     totalPaid += amount;
                 }
             });

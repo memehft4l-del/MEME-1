@@ -27,3 +27,4 @@ html = html.replace(
 fs.writeFileSync(indexPath, html, 'utf8');
 console.log('Environment variables injected successfully');
 
+

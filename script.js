@@ -625,6 +625,21 @@ function startSimulationMode() {
         }
     }, 5000);
     
+    // Initialize countdown timer
+    let countdownSeconds = 5;
+    const countdownInterval = setInterval(() => {
+        countdownSeconds--;
+        const nextUpdateEl = document.getElementById('nextUpdate');
+        if (nextUpdateEl) {
+            if (countdownSeconds > 0) {
+                nextUpdateEl.textContent = `${countdownSeconds}s`;
+            } else {
+                nextUpdateEl.textContent = 'Updating...';
+                countdownSeconds = 5; // Reset for next cycle
+            }
+        }
+    }, 1000);
+    
     console.log('✅ Simulation mode started, interval set to 5 seconds');
 }
 
@@ -709,6 +724,43 @@ function updateMarketCap() {
             console.error('❌ Error updating last update time:', e);
         }
         
+        // Update next update countdown
+        try {
+            const nextUpdateEl = document.getElementById('nextUpdate');
+            if (nextUpdateEl) {
+                let countdown = 5;
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (nextUpdateEl) {
+                        nextUpdateEl.textContent = `${countdown}s`;
+                    }
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        if (nextUpdateEl) {
+                            nextUpdateEl.textContent = 'Updating...';
+                        }
+                    }
+                }, 1000);
+            }
+        } catch (e) {
+            console.error('❌ Error updating next update:', e);
+        }
+        
+        // Update growth percentage
+        try {
+            const growthEl = document.getElementById('growth');
+            if (growthEl && previousMarketCap > 0) {
+                const growth = ((currentMarketCap - previousMarketCap) / previousMarketCap) * 100;
+                growthEl.textContent = `${growth >= 0 ? '+' : ''}${growth.toFixed(2)}%`;
+                growthEl.style.color = growth >= 0 ? '#4ade80' : '#ef4444';
+            } else if (growthEl) {
+                growthEl.textContent = '--%';
+                growthEl.style.color = '';
+            }
+        } catch (e) {
+            console.error('❌ Error updating growth:', e);
+        }
+        
         console.log('✅✅✅ updateMarketCap() completed successfully ✅✅✅');
     } catch (error) {
         console.error('❌❌❌ FATAL ERROR in updateMarketCap():', error);
@@ -719,12 +771,44 @@ function updateMarketCap() {
 
 function updateMarketCapDisplay(mc) {
     const formatted = formatCurrency(mc);
-    document.getElementById('marketCap').textContent = formatted;
-    document.getElementById('marketCapDetail').textContent = formatted;
+    const marketCapEl = document.getElementById('marketCap');
+    const marketCapDetailEl = document.getElementById('marketCapDetail');
+    
+    if (marketCapEl && marketCapEl.textContent !== formatted) {
+        marketCapEl.style.opacity = '0.5';
+        setTimeout(() => {
+            marketCapEl.textContent = formatted;
+            marketCapEl.style.opacity = '1';
+        }, 150);
+    } else if (marketCapEl) {
+        marketCapEl.textContent = formatted;
+    }
+    
+    if (marketCapDetailEl && marketCapDetailEl.textContent !== formatted) {
+        marketCapDetailEl.style.opacity = '0.5';
+        setTimeout(() => {
+            marketCapDetailEl.textContent = formatted;
+            marketCapDetailEl.style.opacity = '1';
+        }, 150);
+    } else if (marketCapDetailEl) {
+        marketCapDetailEl.textContent = formatted;
+    }
 }
 
 function updatePriceDisplay(price) {
-    document.getElementById('tokenPrice').textContent = `$${price.toFixed(6)}`;
+    const priceEl = document.getElementById('tokenPrice');
+    if (priceEl) {
+        const newText = `$${price.toFixed(6)}`;
+        if (priceEl.textContent !== newText) {
+            priceEl.style.opacity = '0.5';
+            setTimeout(() => {
+                priceEl.textContent = newText;
+                priceEl.style.opacity = '1';
+            }, 150);
+        } else {
+            priceEl.textContent = newText;
+        }
+    }
 }
 
 function updateChangeDisplay(change) {
@@ -743,8 +827,33 @@ function updateChangeDisplay(change) {
 }
 
 function updateSizeDisplay(sizeInCm) {
-    document.getElementById('currentSize').textContent = `${sizeInCm} cm`;
-    document.getElementById('currentSizeDetail').textContent = `${sizeInCm} cm`;
+    const sizeText = `${sizeInCm} cm`;
+    const currentSizeEl = document.getElementById('currentSize');
+    const currentSizeDetailEl = document.getElementById('currentSizeDetail');
+    
+    if (currentSizeEl) {
+        if (currentSizeEl.textContent !== sizeText) {
+            currentSizeEl.style.opacity = '0.5';
+            setTimeout(() => {
+                currentSizeEl.textContent = sizeText;
+                currentSizeEl.style.opacity = '1';
+            }, 150);
+        } else {
+            currentSizeEl.textContent = sizeText;
+        }
+    }
+    
+    if (currentSizeDetailEl) {
+        if (currentSizeDetailEl.textContent !== sizeText) {
+            currentSizeDetailEl.style.opacity = '0.5';
+            setTimeout(() => {
+                currentSizeDetailEl.textContent = sizeText;
+                currentSizeDetailEl.style.opacity = '1';
+            }, 150);
+        } else {
+            currentSizeDetailEl.textContent = sizeText;
+        }
+    }
 }
 
 function updateVitals(marketCap, priceChange1h, volume24h) {

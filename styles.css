@@ -60,6 +60,8 @@ body > * {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .stat-card::before {
@@ -95,6 +97,11 @@ body > * {
     font-size: 24px;
     font-weight: bold;
     color: #fff;
+    transition: all 0.3s ease;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Main Content */
@@ -134,6 +141,8 @@ body > * {
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .panel-section:hover {
@@ -161,6 +170,7 @@ body > * {
     align-items: center;
     padding: 8px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    min-height: 36px;
 }
 
 .stat-item:last-child {
@@ -175,6 +185,9 @@ body > * {
 .stat-value-small {
     font-size: 13px;
     font-weight: bold;
+    transition: all 0.3s ease;
+    min-height: 18px;
+    display: inline-block;
 }
 
 /* Vitals */
@@ -208,6 +221,7 @@ body > * {
     background: linear-gradient(90deg, #ff6b6b, #ffd93d);
     border-radius: 4px;
     transition: width 0.5s ease;
+    will-change: width;
 }
 
 .vital-value {

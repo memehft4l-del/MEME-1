@@ -76,3 +76,4 @@ After deploying, make sure your Supabase credentials are set in:
 - **3D model not showing:** Check browser console for errors
 - **Mobile not working:** Clear browser cache and refresh
 
+

@@ -1577,14 +1577,14 @@ function startGame() {
         return;
     }
     
-    // Reset game state
-    gameState.level = 1;
+    // Reset game state - Start at level 3 (hard levels only)
+    gameState.level = 3;
     gameState.score = 0;
-    gameState.timeLeft = 30;
+    gameState.timeLeft = 25;
     gameState.gameActive = true;
     gameState.targetsHit = 0;
-    gameState.targetsNeeded = 10; // Need to hit 10 targets per level
-    gameState.targetSpeed = 2000; // 2 seconds to click
+    gameState.targetsNeeded = 14; // Level 3 starts with 14 targets
+    gameState.targetSpeed = 1500; // 1.5 seconds to click (harder)
     gameState.misses = 0;
     
     // Clear any existing timers
@@ -1673,8 +1673,9 @@ function hitTarget() {
 }
 
 function completeLevel() {
-    if (gameState.level >= 5) {
-        // Game won!
+    // Any level completion (3, 4, or 5) allows airdrop claim
+    if (gameState.level >= 3) {
+        // Game won! (completed at least level 3)
         gameState.gameActive = false;
         stopTimer();
         if (gameState.targetTimer) {
@@ -1685,9 +1686,9 @@ function completeLevel() {
         // Next level - harder!
         gameState.level++;
         gameState.targetsHit = 0;
-        gameState.targetsNeeded = 10 + (gameState.level * 2); // More targets needed
-        gameState.targetSpeed = Math.max(1000, 2000 - (gameState.level * 200)); // Faster targets
-        gameState.timeLeft += 5; // Bonus time
+        gameState.targetsNeeded = 14 + ((gameState.level - 3) * 2); // Level 3: 14, Level 4: 16, Level 5: 18
+        gameState.targetSpeed = Math.max(800, 1500 - ((gameState.level - 3) * 200)); // Faster targets
+        gameState.timeLeft += 3; // Small bonus time
         
         // Show level complete message
         const instructions = document.getElementById('gameInstructions');
@@ -1793,8 +1794,8 @@ async function claimAirdrop() {
         return;
     }
     
-    if (gameState.level < 5) {
-        alert('You must complete level 5 to claim the airdrop!');
+    if (gameState.level < 3) {
+        alert('You must complete at least level 3 to claim the airdrop!');
         return;
     }
     
@@ -1862,20 +1863,7 @@ async function claimAirdrop() {
 }
 
 // Leaderboard Logic
-let currentFilter = 'all';
-
 function initLeaderboard() {
-    // Filter buttons
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filterBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilter = btn.dataset.level;
-            loadLeaderboard();
-        });
-    });
-    
     // Load leaderboard on init
     loadLeaderboard();
     
@@ -1895,19 +1883,14 @@ async function loadLeaderboard() {
             return;
         }
         
-        let query = supabaseClient
+        // Get all winners - unified leaderboard
+        const { data, error } = await supabaseClient
             .from('game_winners')
             .select('wallet_address, level, score, claimed_at')
             .order('level', { ascending: false })
             .order('score', { ascending: false })
-            .order('claimed_at', { ascending: true });
-        
-        // Apply filter
-        if (currentFilter !== 'all') {
-            query = query.eq('level', parseInt(currentFilter));
-        }
-        
-        const { data, error } = await query.limit(100);
+            .order('claimed_at', { ascending: true })
+            .limit(100);
         
         if (error) {
             console.error('Error loading leaderboard:', error);

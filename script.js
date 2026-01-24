@@ -2801,12 +2801,18 @@ async function loadCasinoStats() {
             
             const wageredEl = document.getElementById('totalWagered');
             const wonEl = document.getElementById('totalWon');
+            const balanceEl = document.getElementById('casinoBalance');
             
             if (wageredEl) {
                 wageredEl.textContent = totalWagered.toFixed(4) + ' SOL';
             }
             if (wonEl) {
                 wonEl.textContent = totalWon.toFixed(4) + ' SOL';
+            }
+            // Calculate balance (total won - total wagered)
+            if (balanceEl) {
+                const balance = totalWon - totalWagered;
+                balanceEl.textContent = balance.toFixed(4) + ' SOL';
             }
         } else {
             console.log('No data found for wallet');

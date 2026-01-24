@@ -137,6 +137,40 @@ CREATE TABLE IF NOT EXISTS casino_bets (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add missing columns if they don't exist (for existing tables)
+DO $$ 
+BEGIN
+    -- Add total_wagered if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='casino_bets' AND column_name='total_wagered') THEN
+        ALTER TABLE casino_bets ADD COLUMN total_wagered NUMERIC(20, 9) DEFAULT 0;
+    END IF;
+    
+    -- Add total_won if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='casino_bets' AND column_name='total_won') THEN
+        ALTER TABLE casino_bets ADD COLUMN total_won NUMERIC(20, 9) DEFAULT 0;
+    END IF;
+    
+    -- Add total_paid_out if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='casino_bets' AND column_name='total_paid_out') THEN
+        ALTER TABLE casino_bets ADD COLUMN total_paid_out NUMERIC(20, 9) DEFAULT 0;
+    END IF;
+    
+    -- Add house_fee_collected if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='casino_bets' AND column_name='house_fee_collected') THEN
+        ALTER TABLE casino_bets ADD COLUMN house_fee_collected NUMERIC(20, 9) DEFAULT 0;
+    END IF;
+    
+    -- Add last_bet_at if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='casino_bets' AND column_name='last_bet_at') THEN
+        ALTER TABLE casino_bets ADD COLUMN last_bet_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+END $$;
+
 -- Enable RLS on casino_bets
 ALTER TABLE casino_bets ENABLE ROW LEVEL SECURITY;
 
@@ -167,4 +201,3 @@ DROP TRIGGER IF EXISTS update_casino_bets_updated_at ON casino_bets;
 -- Create trigger to update updated_at on casino_bets
 CREATE TRIGGER update_casino_bets_updated_at BEFORE UPDATE ON casino_bets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-

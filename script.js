@@ -2856,8 +2856,6 @@ async function verifyAndPlayBet() {
         }
         
         if (!transaction) {
-        
-        if (!transaction) {
             if (statusEl) {
                 statusEl.textContent = '❌ No bet found. Please send exactly 0.1 SOL to the address above first.';
                 statusEl.className = 'bet-status error';

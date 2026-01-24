@@ -2725,7 +2725,7 @@ function initCasinoGame() {
     loadCasinoStats();
 }
 
-function submitWalletCasino() {
+async function submitWalletCasino() {
     const walletInput = document.getElementById('walletAddressInput3');
     const address = walletInput ? walletInput.value.trim() : '';
     

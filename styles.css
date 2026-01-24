@@ -316,10 +316,11 @@ body > * {
 .info-item {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 10px 0;
+    align-items: center;
+    padding: 12px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     gap: 10px;
+    min-height: 44px;
 }
 
 .info-item:last-child {
@@ -328,18 +329,26 @@ body > * {
 
 .info-label {
     font-size: 13px;
-    opacity: 0.8;
+    opacity: 0.9;
     flex-shrink: 0;
-    min-width: 80px;
+    min-width: 90px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .info-value {
-    font-size: 13px;
-    font-weight: bold;
+    font-size: 14px;
+    font-weight: 700;
     text-align: right;
     flex: 1;
     overflow-wrap: break-word;
     word-break: break-all;
+    color: #fff;
+    transition: all 0.3s ease;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 .info-item-ca {
@@ -355,6 +364,7 @@ body > * {
 .info-item-ca .info-value {
     text-align: left;
     width: 100%;
+    justify-content: flex-start;
 }
 
 #contractAddress {
@@ -804,6 +814,14 @@ body > * {
 .panel-section,
 .stat-card {
     animation: fadeIn 0.6s ease-out;
+}
+
+/* Prevent layout shifts during updates */
+.stat-value,
+.stat-value-small,
+.info-value,
+.vital-value {
+    contain: layout style paint;
 }
 
 /* Improved glassmorphism */

@@ -1464,11 +1464,15 @@ let walletAddress = null;
 let gameState = {
     level: 1,
     score: 0,
-    timeLeft: 30,
-    targetScore: 10,
+    timeLeft: 20,
+    targetScore: 0,
     gameActive: false,
     gameTimer: null,
-    completedLevels: []
+    completedLevels: [],
+    targetsFound: 0,
+    targetsNeeded: 0,
+    shuffleInterval: null,
+    cellsClicked: 0
 };
 
 // Initialize challenge game
@@ -1560,10 +1564,18 @@ function startGame() {
     
     gameState.level = 1;
     gameState.score = 0;
-    gameState.timeLeft = 30;
-    gameState.targetScore = 10;
+    gameState.timeLeft = 20;
+    gameState.targetScore = 0;
     gameState.gameActive = true;
     gameState.completedLevels = [];
+    gameState.targetsFound = 0;
+    gameState.cellsClicked = 0;
+    
+    // Clear any existing intervals
+    if (gameState.shuffleInterval) {
+        clearInterval(gameState.shuffleInterval);
+        gameState.shuffleInterval = null;
+    }
     
     document.getElementById('gameResult').style.display = 'none';
     updateGameDisplay();
@@ -1576,42 +1588,97 @@ function createGameGrid() {
     grid.innerHTML = '';
     grid.className = 'game-grid';
     
-    const gridSize = Math.min(5 + gameState.level, 8); // 5x5 to 8x8
+    // Harder: Larger grid, more targets needed
+    const gridSize = Math.min(6 + gameState.level, 10); // 7x7 to 10x10
     grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
     
     const totalCells = gridSize * gridSize;
-    const targetCells = Math.min(3 + gameState.level, 8); // 3-8 target cells per level
+    // More targets needed: level 1 = 5, level 5 = 15+
+    gameState.targetsNeeded = Math.min(5 + (gameState.level * 2), 20);
+    gameState.targetsFound = 0;
     
     // Create cells
     for (let i = 0; i < totalCells; i++) {
         const cell = document.createElement('div');
         cell.className = 'game-cell';
         cell.dataset.index = i;
+        cell.dataset.isTarget = 'false';
         grid.appendChild(cell);
     }
     
-    // Randomly select target cells
+    // Randomly select target cells (more random distribution)
     const targetIndices = [];
-    while (targetIndices.length < targetCells) {
-        const idx = Math.floor(Math.random() * totalCells);
-        if (!targetIndices.includes(idx)) {
-            targetIndices.push(idx);
-        }
+    const shuffledIndices = Array.from({length: totalCells}, (_, i) => i)
+        .sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < gameState.targetsNeeded && i < shuffledIndices.length; i++) {
+        targetIndices.push(shuffledIndices[i]);
     }
     
-    // Mark target cells
+    // Mark target cells (but don't show them immediately)
     targetIndices.forEach(idx => {
         const cell = grid.children[idx];
+        cell.dataset.isTarget = 'true';
         cell.classList.add('target-cell');
-        cell.addEventListener('click', handleCellClick);
     });
     
     // Add click listeners to all cells
     Array.from(grid.children).forEach(cell => {
-        if (!cell.classList.contains('target-cell')) {
-            cell.addEventListener('click', handleWrongClick);
-        }
+        cell.addEventListener('click', (e) => {
+            if (cell.dataset.isTarget === 'true') {
+                handleCellClick(e);
+            } else {
+                handleWrongClick(e);
+            }
+        });
     });
+    
+    // Start shuffling targets randomly (makes it much harder!)
+    startShufflingTargets();
+}
+
+function startShufflingTargets() {
+    if (gameState.shuffleInterval) {
+        clearInterval(gameState.shuffleInterval);
+    }
+    
+    // Shuffle targets every 1.5-3 seconds (random interval)
+    const shuffleDelay = () => 1500 + Math.random() * 1500;
+    
+    gameState.shuffleInterval = setInterval(() => {
+        if (!gameState.gameActive) {
+            clearInterval(gameState.shuffleInterval);
+            return;
+        }
+        
+        shuffleTargets();
+    }, shuffleDelay());
+}
+
+function shuffleTargets() {
+    const grid = document.getElementById('gameGrid');
+    if (!grid) return;
+    
+    const cells = Array.from(grid.children);
+    const targetCells = cells.filter(cell => cell.dataset.isTarget === 'true' && !cell.classList.contains('clicked'));
+    const emptyCells = cells.filter(cell => cell.dataset.isTarget === 'false' && !cell.classList.contains('clicked'));
+    
+    if (targetCells.length === 0 || emptyCells.length === 0) return;
+    
+    // Randomly move some targets to new positions
+    const numToShuffle = Math.min(Math.floor(targetCells.length * 0.3), emptyCells.length);
+    
+    for (let i = 0; i < numToShuffle; i++) {
+        const targetCell = targetCells[Math.floor(Math.random() * targetCells.length)];
+        const newCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        
+        // Swap positions
+        targetCell.classList.remove('target-cell');
+        targetCell.dataset.isTarget = 'false';
+        
+        newCell.classList.add('target-cell');
+        newCell.dataset.isTarget = 'true';
+    }
 }
 
 function handleCellClick(e) {
@@ -1622,13 +1689,20 @@ function handleCellClick(e) {
     
     cell.classList.add('clicked');
     cell.classList.remove('target-cell');
-    gameState.score++;
+    gameState.targetsFound++;
+    gameState.score += gameState.level; // More points for higher levels
+    gameState.cellsClicked++;
     
     updateGameDisplay();
     
+    // Visual feedback
+    cell.style.backgroundColor = '#4ade80';
+    setTimeout(() => {
+        cell.style.backgroundColor = '';
+    }, 300);
+    
     // Check if level complete
-    const remainingTargets = document.querySelectorAll('.target-cell:not(.clicked)').length;
-    if (remainingTargets === 0) {
+    if (gameState.targetsFound >= gameState.targetsNeeded) {
         completeLevel();
     }
 }
@@ -1636,19 +1710,42 @@ function handleCellClick(e) {
 function handleWrongClick(e) {
     if (!gameState.gameActive) return;
     
-    // Wrong click - lose points
-    gameState.score = Math.max(0, gameState.score - 1);
+    const cell = e.target;
+    if (cell.classList.contains('clicked')) return;
+    
+    cell.classList.add('clicked');
+    gameState.cellsClicked++;
+    
+    // Harder: Lose more points/time for wrong clicks
+    gameState.score = Math.max(0, gameState.score - (gameState.level * 2));
+    gameState.timeLeft = Math.max(0, gameState.timeLeft - 2); // Lose 2 seconds per wrong click
+    
     updateGameDisplay();
     
     // Visual feedback
-    e.target.style.backgroundColor = '#ef4444';
+    cell.style.backgroundColor = '#ef4444';
+    cell.style.animation = 'shake 0.3s';
     setTimeout(() => {
-        e.target.style.backgroundColor = '';
-    }, 200);
+        cell.style.backgroundColor = '';
+        cell.style.animation = '';
+    }, 300);
+    
+    // Check if time ran out
+    if (gameState.timeLeft <= 0) {
+        gameState.gameActive = false;
+        stopTimer();
+        showGameResult(false);
+    }
 }
 
 function completeLevel() {
     gameState.completedLevels.push(gameState.level);
+    
+    // Stop shuffling
+    if (gameState.shuffleInterval) {
+        clearInterval(gameState.shuffleInterval);
+        gameState.shuffleInterval = null;
+    }
     
     if (gameState.level >= 5) {
         // Game won!
@@ -1656,12 +1753,24 @@ function completeLevel() {
         stopTimer();
         showGameResult(true);
     } else {
-        // Next level
+        // Next level - harder!
         gameState.level++;
-        gameState.targetScore = 10 + (gameState.level * 2);
+        // Less time per level, but bonus time for completing previous level
+        gameState.timeLeft = Math.max(15 - (gameState.level * 2), 8) + 3; // 18s -> 16s -> 14s -> 12s -> 10s + 3 bonus
+        gameState.targetsFound = 0;
+        gameState.cellsClicked = 0;
+        
+        // Show level complete message
+        const grid = document.getElementById('gameGrid');
+        const message = document.createElement('div');
+        message.className = 'level-complete-message';
+        message.textContent = `Level ${gameState.level - 1} Complete!`;
+        grid.appendChild(message);
+        
         setTimeout(() => {
+            message.remove();
             createGameGrid();
-        }, 1000);
+        }, 1500);
     }
 }
 
@@ -1670,9 +1779,25 @@ function startTimer() {
         gameState.timeLeft--;
         updateGameDisplay();
         
+        // Visual warning when time is low
+        const timeEl = document.getElementById('gameTime');
+        if (timeEl) {
+            if (gameState.timeLeft <= 5) {
+                timeEl.style.color = '#ef4444';
+                timeEl.style.animation = 'pulse 0.5s infinite';
+            } else {
+                timeEl.style.color = '';
+                timeEl.style.animation = '';
+            }
+        }
+        
         if (gameState.timeLeft <= 0) {
             gameState.gameActive = false;
             stopTimer();
+            if (gameState.shuffleInterval) {
+                clearInterval(gameState.shuffleInterval);
+                gameState.shuffleInterval = null;
+            }
             showGameResult(false);
         }
     }, 1000);
@@ -1688,12 +1813,22 @@ function stopTimer() {
 function stopGame() {
     gameState.gameActive = false;
     stopTimer();
+    if (gameState.shuffleInterval) {
+        clearInterval(gameState.shuffleInterval);
+        gameState.shuffleInterval = null;
+    }
 }
 
 function updateGameDisplay() {
     document.getElementById('gameLevel').textContent = gameState.level;
     document.getElementById('gameScore').textContent = gameState.score;
     document.getElementById('gameTime').textContent = gameState.timeLeft;
+    
+    // Update instructions
+    const instructionsEl = document.querySelector('.game-instructions');
+    if (instructionsEl) {
+        instructionsEl.textContent = `Find ${gameState.targetsNeeded} green squares! Found: ${gameState.targetsFound}/${gameState.targetsNeeded} (They move randomly!)`;
+    }
 }
 
 function showGameResult(won) {

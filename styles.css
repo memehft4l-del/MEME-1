@@ -848,11 +848,12 @@ body > * {
 
 .game-grid {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     padding: 20px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 12px;
-    min-height: 300px;
+    min-height: 400px;
+    position: relative;
 }
 
 .game-cell {
@@ -870,17 +871,61 @@ body > * {
 }
 
 .game-cell.target-cell {
-    background: rgba(74, 222, 128, 0.3);
+    background: rgba(74, 222, 128, 0.4);
     border-color: #4ade80;
-    animation: pulseTarget 1s ease-in-out infinite;
+    animation: pulseTarget 0.8s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
 }
 
 @keyframes pulseTarget {
     0%, 100% {
         box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+        transform: scale(1);
     }
     50% {
-        box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
+        box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+        transform: scale(1.05);
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.level-complete-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    color: #fff;
+    padding: 20px 40px;
+    border-radius: 15px;
+    font-size: 24px;
+    font-weight: bold;
+    z-index: 100;
+    animation: levelComplete 1.5s ease-out;
+    box-shadow: 0 10px 40px rgba(74, 222, 128, 0.5);
+}
+
+@keyframes levelComplete {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
     }
 }
 

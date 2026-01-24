@@ -2769,7 +2769,12 @@ async function submitWalletCasino() {
 }
 
 async function loadCasinoStats() {
-    if (!casinoState.walletAddress || !supabaseClient) return;
+    if (!casinoState.walletAddress || !supabaseClient) {
+        console.log('Cannot load stats - missing wallet or supabase client');
+        return;
+    }
+    
+    console.log('Loading casino stats for wallet:', casinoState.walletAddress);
     
     try {
         const { data, error } = await supabaseClient
@@ -2778,8 +2783,13 @@ async function loadCasinoStats() {
             .eq('wallet_address', casinoState.walletAddress)
             .maybeSingle();
         
+        console.log('Casino stats query result:', { data, error });
+        
         if (error) {
             console.error('Error loading casino stats:', error);
+            document.getElementById('totalWagered').textContent = '0.0000 SOL';
+            document.getElementById('totalWon').textContent = '0.0000 SOL';
+            return;
         }
         
         if (data) {
@@ -2787,16 +2797,28 @@ async function loadCasinoStats() {
             const totalWagered = data.total_wagered ? parseFloat(data.total_wagered) : (data.total_bets || 0) * BET_AMOUNT;
             const totalWon = data.total_paid_out ? parseFloat(data.total_paid_out) : (data.total_won ? parseFloat(data.total_won) : 0);
             
-            document.getElementById('totalWagered').textContent = totalWagered.toFixed(4) + ' SOL';
-            document.getElementById('totalWon').textContent = totalWon.toFixed(4) + ' SOL';
+            console.log('Calculated stats:', { totalWagered, totalWon, data });
+            
+            const wageredEl = document.getElementById('totalWagered');
+            const wonEl = document.getElementById('totalWon');
+            
+            if (wageredEl) {
+                wageredEl.textContent = totalWagered.toFixed(4) + ' SOL';
+            }
+            if (wonEl) {
+                wonEl.textContent = totalWon.toFixed(4) + ' SOL';
+            }
         } else {
+            console.log('No data found for wallet');
             document.getElementById('totalWagered').textContent = '0.0000 SOL';
             document.getElementById('totalWon').textContent = '0.0000 SOL';
         }
     } catch (error) {
         console.error('Error loading casino stats:', error);
-        document.getElementById('totalWagered').textContent = '0.0000 SOL';
-        document.getElementById('totalWon').textContent = '0.0000 SOL';
+        const wageredEl = document.getElementById('totalWagered');
+        const wonEl = document.getElementById('totalWon');
+        if (wageredEl) wageredEl.textContent = '0.0000 SOL';
+        if (wonEl) wonEl.textContent = '0.0000 SOL';
     }
 }
 

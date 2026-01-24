@@ -2652,4 +2652,386 @@ async function claimAirdropMemory() {
     }
 }
 
+// Casino Game Logic
+let casinoState = {
+    walletAddress: null,
+    pendingBet: null,
+    lastCheckedSignature: null
+};
+
+function initCasinoGame() {
+    const walletInput = document.getElementById('walletAddressInput3');
+    const submitBtn = document.getElementById('submitWalletBtn3');
+    const verifyBtn = document.getElementById('verifyBetBtn');
+    const copyBtn = document.getElementById('copyWalletBtn');
+    const playAgainBtn = document.getElementById('playAgainBtn3');
+    
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitWalletCasino);
+    }
+    
+    if (walletInput) {
+        walletInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitWalletCasino();
+        });
+    }
+    
+    if (verifyBtn) {
+        verifyBtn.addEventListener('click', verifyAndPlayBet);
+    }
+    
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            const walletAddr = document.getElementById('devWalletAddress');
+            if (walletAddr) {
+                navigator.clipboard.writeText(walletAddr.textContent).then(() => {
+                    copyBtn.textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = '📋 Copy';
+                    }, 2000);
+                });
+            }
+        });
+    }
+    
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', () => {
+            document.getElementById('gameResult3').style.display = 'none';
+            document.getElementById('betStatus').textContent = '';
+            document.getElementById('betStatus').className = 'bet-status';
+        });
+    }
+    
+    // Load casino stats
+    loadCasinoStats();
+}
+
+function submitWalletCasino() {
+    const walletInput = document.getElementById('walletAddressInput3');
+    const address = walletInput ? walletInput.value.trim() : '';
+    
+    if (!address) {
+        alert('Please enter your Solana wallet address!');
+        return;
+    }
+    
+    if (!isValidSolanaAddress(address)) {
+        alert('Invalid Solana wallet address format!');
+        return;
+    }
+    
+    casinoState.walletAddress = address;
+    
+    // Store wallet address
+    try {
+        if (supabaseClient) {
+            supabaseClient.from('game_participants').insert({
+                wallet_address: address,
+                created_at: new Date().toISOString()
+            }).catch(e => {
+                if (e.code !== '23505') console.error('Error storing wallet:', e);
+            });
+        }
+    } catch (err) {
+        console.error('Supabase error:', err);
+    }
+    
+    // Update UI
+    document.getElementById('walletStatus3').style.display = 'none';
+    document.getElementById('walletConnected3').style.display = 'block';
+    document.getElementById('walletAddress3').textContent = 
+        address.substring(0, 8) + '...' + address.substring(address.length - 8);
+    document.getElementById('casinoArea').style.display = 'block';
+    
+    // Load user stats
+    loadCasinoStats();
+}
+
+async function loadCasinoStats() {
+    if (!casinoState.walletAddress || !supabaseClient) return;
+    
+    try {
+        const { data } = await supabaseClient
+            .from('casino_bets')
+            .select('bet_amount, win_amount, payout_amount')
+            .eq('wallet_address', casinoState.walletAddress);
+        
+        if (data) {
+            let totalWagered = 0;
+            let totalWon = 0;
+            
+            data.forEach(bet => {
+                totalWagered += parseFloat(bet.bet_amount || 0);
+                if (bet.win_amount > 0) {
+                    totalWon += parseFloat(bet.payout_amount || 0);
+                }
+            });
+            
+            document.getElementById('totalWagered').textContent = totalWagered.toFixed(4) + ' SOL';
+            document.getElementById('totalWon').textContent = totalWon.toFixed(4) + ' SOL';
+        }
+    } catch (error) {
+        console.error('Error loading casino stats:', error);
+    }
+}
+
+async function verifyAndPlayBet() {
+    if (!casinoState.walletAddress) {
+        alert('Please enter your wallet address first!');
+        return;
+    }
+    
+    const verifyBtn = document.getElementById('verifyBetBtn');
+    const statusEl = document.getElementById('betStatus');
+    
+    if (verifyBtn) verifyBtn.disabled = true;
+    if (statusEl) {
+        statusEl.textContent = 'Checking for bet transaction...';
+        statusEl.className = 'bet-status pending';
+    }
+    
+    try {
+        // Check for recent transaction from user's wallet to dev wallet
+        const transaction = await findBetTransaction();
+        
+        if (!transaction) {
+            if (statusEl) {
+                statusEl.textContent = '❌ No bet found. Please send exactly 0.1 SOL to the address above first.';
+                statusEl.className = 'bet-status error';
+            }
+            if (verifyBtn) verifyBtn.disabled = false;
+            return;
+        }
+        
+        // Verify amount is exactly 0.1 SOL
+        const betAmount = transaction.amount;
+        if (Math.abs(betAmount - BET_AMOUNT) > 0.001) {
+            if (statusEl) {
+                statusEl.textContent = `❌ Invalid bet amount: ${betAmount.toFixed(4)} SOL. Must be exactly 0.1 SOL.`;
+                statusEl.className = 'bet-status error';
+            }
+            if (verifyBtn) verifyBtn.disabled = false;
+            return;
+        }
+        
+        // Check if this transaction was already used
+        const { data: existingBet } = await supabaseClient
+            .from('casino_bets')
+            .select('*')
+            .eq('transaction_signature', transaction.signature)
+            .single();
+        
+        if (existingBet) {
+            if (statusEl) {
+                statusEl.textContent = '❌ This bet has already been processed.';
+                statusEl.className = 'bet-status error';
+            }
+            if (verifyBtn) verifyBtn.disabled = false;
+            return;
+        }
+        
+        // Process the bet
+        await processBet(transaction);
+        
+    } catch (error) {
+        console.error('Error verifying bet:', error);
+        if (statusEl) {
+            statusEl.textContent = '❌ Error verifying bet. Please try again.';
+            statusEl.className = 'bet-status error';
+        }
+        if (verifyBtn) verifyBtn.disabled = false;
+    }
+}
+
+async function findBetTransaction() {
+    try {
+        // Get recent transactions from dev wallet
+        const response = await fetch(HELIUS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getSignaturesForAddress',
+                params: [
+                    DEV_WALLET,
+                    { limit: 50, commitment: 'confirmed' }
+                ]
+            })
+        });
+        
+        const data = await response.json();
+        if (data.error || !data.result) return null;
+        
+        // Check recent transactions
+        for (const sigInfo of data.result.slice(0, 20)) {
+            const txDetails = await getCasinoTransactionDetails(sigInfo.signature);
+            
+            if (txDetails && 
+                txDetails.from === casinoState.walletAddress &&
+                txDetails.to === DEV_WALLET &&
+                txDetails.amount >= BET_AMOUNT * 0.99 && // Allow small rounding
+                txDetails.amount <= BET_AMOUNT * 1.01) {
+                return {
+                    signature: sigInfo.signature,
+                    amount: txDetails.amount,
+                    timestamp: sigInfo.blockTime
+                };
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error finding transaction:', error);
+        return null;
+    }
+}
+
+async function getCasinoTransactionDetails(signature) {
+    try {
+        const response = await fetch(HELIUS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTransaction',
+                params: [
+                    signature,
+                    { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }
+                ]
+            })
+        });
+        
+        const data = await response.json();
+        if (data.error || !data.result) return null;
+        
+        const tx = data.result;
+        const accountKeys = tx.transaction?.message?.accountKeys || [];
+        const preBalances = tx.meta?.preBalances || [];
+        const postBalances = tx.meta?.postBalances || [];
+        
+        // Find sender and receiver
+        let fromAddress = null;
+        let toAddress = null;
+        let amount = 0;
+        
+        for (let i = 0; i < accountKeys.length; i++) {
+            const key = typeof accountKeys[i] === 'string' ? accountKeys[i] : accountKeys[i].pubkey;
+            const preBalance = preBalances[i] || 0;
+            const postBalance = postBalances[i] || 0;
+            const balanceChange = (preBalance - postBalance) / 1e9;
+            
+            if (balanceChange > 0 && key !== DEV_WALLET) {
+                fromAddress = key;
+                amount = balanceChange;
+            }
+            if (balanceChange < 0 && key === DEV_WALLET) {
+                toAddress = key;
+            }
+        }
+        
+        if (fromAddress && toAddress === DEV_WALLET && amount > 0) {
+            return { from: fromAddress, to: toAddress, amount: amount };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error getting transaction details:', error);
+        return null;
+    }
+}
+
+async function processBet(transaction) {
+    const statusEl = document.getElementById('betStatus');
+    const verifyBtn = document.getElementById('verifyBetBtn');
+    
+    try {
+        // Calculate house fee
+        const houseFee = BET_AMOUNT * (HOUSE_FEE_PERCENT / 100);
+        const netBetAmount = BET_AMOUNT - houseFee;
+        
+        // Determine win/loss (45% chance to win - house edge)
+        const isWin = Math.random() < WIN_PROBABILITY;
+        const winAmount = isWin ? netBetAmount * 2 : 0; // 2x payout if win
+        const payoutAmount = isWin ? winAmount : 0;
+        
+        // Store bet in Supabase
+        const betData = {
+            wallet_address: casinoState.walletAddress,
+            bet_amount: BET_AMOUNT,
+            bet_type: 'self_bet',
+            game_result: isWin ? 'win' : 'loss',
+            win_amount: winAmount,
+            payout_amount: payoutAmount,
+            house_fee: houseFee,
+            transaction_signature: transaction.signature,
+            status: 'confirmed'
+        };
+        
+        if (supabaseClient) {
+            const { error } = await supabaseClient
+                .from('casino_bets')
+                .insert(betData);
+            
+            if (error) throw error;
+        }
+        
+        // Show result
+        showCasinoResult(isWin, payoutAmount, houseFee);
+        
+        if (statusEl) {
+            statusEl.textContent = `✅ Bet processed! ${isWin ? 'WINNER!' : 'Better luck next time!'}`;
+            statusEl.className = 'bet-status success';
+        }
+        
+        // Reload stats
+        loadCasinoStats();
+        
+    } catch (error) {
+        console.error('Error processing bet:', error);
+        if (statusEl) {
+            statusEl.textContent = '❌ Error processing bet. Please contact support.';
+            statusEl.className = 'bet-status error';
+        }
+    } finally {
+        if (verifyBtn) verifyBtn.disabled = false;
+    }
+}
+
+function showCasinoResult(isWin, payoutAmount, houseFee) {
+    const resultDiv = document.getElementById('gameResult3');
+    const messageEl = document.getElementById('resultMessage3');
+    const payoutInfo = document.getElementById('payoutInfo');
+    
+    if (resultDiv) resultDiv.style.display = 'block';
+    
+    if (messageEl) {
+        if (isWin) {
+            messageEl.textContent = '🎉 YOU WIN! 🎉';
+            messageEl.style.color = '#4ade80';
+        } else {
+            messageEl.textContent = '😔 You Lost';
+            messageEl.style.color = '#ef4444';
+        }
+    }
+    
+    if (payoutInfo) {
+        let html = '<div style="text-align: left; line-height: 1.8;">';
+        html += `<div>Bet Amount: <strong>${BET_AMOUNT} SOL</strong></div>`;
+        html += `<div>House Fee (5%): <strong>${houseFee.toFixed(4)} SOL</strong></div>`;
+        html += `<div>Net Bet: <strong>${(BET_AMOUNT - houseFee).toFixed(4)} SOL</strong></div>`;
+        if (isWin) {
+            html += `<div style="color: #4ade80; margin-top: 10px;">Payout: <strong>${payoutAmount.toFixed(4)} SOL</strong></div>`;
+            html += `<div style="color: #4ade80;">Profit: <strong>${(payoutAmount - BET_AMOUNT).toFixed(4)} SOL</strong></div>`;
+        } else {
+            html += `<div style="color: #ef4444; margin-top: 10px;">Loss: <strong>${BET_AMOUNT} SOL</strong></div>`;
+        }
+        html += '</div>';
+        payoutInfo.innerHTML = html;
+    }
+}
+
 

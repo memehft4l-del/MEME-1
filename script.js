@@ -3201,20 +3201,26 @@ async function processBet(transaction) {
                     total_wagered: currentWagered.toString(),
                     total_won: currentWon.toString(),
                     total_paid_out: currentPaidOut.toString(),
+                    house_fee_collected: (parseFloat(existing?.house_fee_collected || 0) + houseFee).toString(),
                     last_bet_at: new Date().toISOString()
                 };
                 
+                console.log('Attempting to upsert:', upsertData);
+                
                 // Try upsert with all columns first
-                let { error: upsertError } = await supabaseClient
+                const { data: upsertResult, error: upsertError } = await supabaseClient
                     .from('casino_bets')
                     .upsert(upsertData, {
                         onConflict: 'wallet_address',
                         ignoreDuplicates: false
-                    });
+                    })
+                    .select();
                 
                 if (upsertError) {
-                    console.log('Full upsert failed, trying minimal:', upsertError);
-                    // If that fails, try with minimal columns
+                    console.error('❌ Upsert error:', upsertError);
+                    console.error('Error details:', JSON.stringify(upsertError, null, 2));
+                    
+                    // Try with just the required columns
                     const minimalData = {
                         wallet_address: casinoState.walletAddress,
                         total_bets: currentBets,
@@ -3222,37 +3228,47 @@ async function processBet(transaction) {
                         total_losses: currentLosses
                     };
                     
-                    // Try to add optional columns one by one
-                    try {
-                        const { error: testError } = await supabaseClient
-                            .from('casino_bets')
-                            .select('total_wagered')
-                            .limit(1)
-                            .single();
-                        
-                        if (!testError) {
-                            minimalData.total_wagered = currentWagered.toString();
-                            minimalData.total_won = currentWon.toString();
-                            minimalData.total_paid_out = currentPaidOut.toString();
-                        }
-                    } catch (e) {
-                        console.log('Optional columns not available');
-                    }
+                    console.log('Trying minimal upsert:', minimalData);
                     
-                    const { error: retryError } = await supabaseClient
+                    const { data: minimalResult, error: retryError } = await supabaseClient
                         .from('casino_bets')
                         .upsert(minimalData, {
                             onConflict: 'wallet_address',
                             ignoreDuplicates: false
-                        });
+                        })
+                        .select();
                     
                     if (retryError) {
-                        console.error('Retry also failed:', retryError);
+                        console.error('❌ Minimal upsert also failed:', retryError);
+                        console.error('Retry error details:', JSON.stringify(retryError, null, 2));
                     } else {
-                        console.log('✅ Bet saved with minimal columns');
+                        console.log('✅ Bet saved with minimal columns:', minimalResult);
+                        
+                        // Try to update the numeric columns separately if they exist
+                        try {
+                            const updateData = {};
+                            if (existing?.total_wagered !== undefined) updateData.total_wagered = currentWagered.toString();
+                            if (existing?.total_won !== undefined) updateData.total_won = currentWon.toString();
+                            if (existing?.total_paid_out !== undefined) updateData.total_paid_out = currentPaidOut.toString();
+                            
+                            if (Object.keys(updateData).length > 0) {
+                                const { error: updateError } = await supabaseClient
+                                    .from('casino_bets')
+                                    .update(updateData)
+                                    .eq('wallet_address', casinoState.walletAddress);
+                                
+                                if (updateError) {
+                                    console.error('Update error:', updateError);
+                                } else {
+                                    console.log('✅ Updated numeric columns');
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Could not update numeric columns:', e);
+                        }
                     }
                 } else {
-                    console.log('✅ Bet saved to Supabase successfully with all columns');
+                    console.log('✅ Bet saved to Supabase successfully:', upsertResult);
                 }
             } catch (dbError) {
                 console.error('Database error:', dbError);

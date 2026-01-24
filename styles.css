@@ -601,24 +601,59 @@ body > * {
     opacity: 0.9;
 }
 
-.connect-wallet-btn {
+.wallet-input-group {
+    display: flex;
+    gap: 10px;
+    max-width: 600px;
+    margin: 0 auto 10px;
+}
+
+.wallet-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    color: #fff;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    transition: all 0.3s ease;
+}
+
+.wallet-input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.wallet-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.submit-wallet-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     color: #fff;
-    padding: 15px 30px;
+    padding: 12px 24px;
     border-radius: 12px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
+    white-space: nowrap;
 }
 
-.connect-wallet-btn:hover {
+.submit-wallet-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+}
+
+.wallet-hint {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 10px;
+    font-style: italic;
 }
 
 .wallet-connected {
@@ -629,23 +664,9 @@ body > * {
 }
 
 .wallet-connected p {
-    margin-bottom: 10px;
+    margin-bottom: 0;
     font-size: 14px;
-}
-
-.disconnect-btn {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.5);
-    color: #fff;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.3s ease;
-}
-
-.disconnect-btn:hover {
-    background: rgba(239, 68, 68, 0.4);
+    font-family: 'Courier New', monospace;
 }
 
 .game-area {

@@ -1452,7 +1452,7 @@ function showEasterEggMessage(message) {
 }
 
 // Challenge Game Logic
-let wallet = null;
+let walletAddress = null;
 let gameState = {
     level: 1,
     score: 0,
@@ -1463,25 +1463,22 @@ let gameState = {
     completedLevels: []
 };
 
-const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
-
-// Initialize wallet connection
+// Initialize challenge game
 function initChallengeGame() {
-    // Check if wallet is already connected
-    if (window.solana && window.solana.isPhantom) {
-        checkWalletConnection();
+    // Wallet address input
+    const walletInput = document.getElementById('walletAddressInput');
+    const submitWalletBtn = document.getElementById('submitWalletBtn');
+    
+    if (submitWalletBtn) {
+        submitWalletBtn.addEventListener('click', submitWalletAddress);
     }
     
-    // Connect wallet button
-    const connectBtn = document.getElementById('connectWalletBtn');
-    if (connectBtn) {
-        connectBtn.addEventListener('click', connectWallet);
-    }
-    
-    // Disconnect wallet button
-    const disconnectBtn = document.getElementById('disconnectWalletBtn');
-    if (disconnectBtn) {
-        disconnectBtn.addEventListener('click', disconnectWallet);
+    if (walletInput) {
+        walletInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitWalletAddress();
+            }
+        });
     }
     
     // Play again button
@@ -1497,61 +1494,59 @@ function initChallengeGame() {
     }
 }
 
-async function connectWallet() {
-    try {
-        if (!window.solana || !window.solana.isPhantom) {
-            alert('Please install Phantom wallet!');
-            window.open('https://phantom.app/', '_blank');
-            return;
-        }
-        
-        const response = await window.solana.connect();
-        wallet = response.publicKey.toString();
-        
-        // Update UI
-        document.getElementById('walletStatus').style.display = 'none';
-        document.getElementById('walletConnected').style.display = 'block';
-        document.getElementById('walletAddress').textContent = 
-            wallet.substring(0, 4) + '...' + wallet.substring(wallet.length - 4);
-        document.getElementById('gameArea').style.display = 'block';
-        
-        console.log('Wallet connected:', wallet);
-    } catch (err) {
-        console.error('Wallet connection error:', err);
-        alert('Failed to connect wallet. Please try again.');
-    }
+function isValidSolanaAddress(address) {
+    // Basic Solana address validation (base58, 32-44 chars)
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    return base58Regex.test(address);
 }
 
-function disconnectWallet() {
-    if (window.solana) {
-        window.solana.disconnect();
+async function submitWalletAddress() {
+    const walletInput = document.getElementById('walletAddressInput');
+    const address = walletInput ? walletInput.value.trim() : '';
+    
+    if (!address) {
+        alert('Please enter your Solana wallet address!');
+        return;
     }
-    wallet = null;
-    document.getElementById('walletStatus').style.display = 'block';
-    document.getElementById('walletConnected').style.display = 'none';
-    document.getElementById('gameArea').style.display = 'none';
-    stopGame();
-}
-
-async function checkWalletConnection() {
+    
+    if (!isValidSolanaAddress(address)) {
+        alert('Invalid Solana wallet address format!');
+        return;
+    }
+    
+    walletAddress = address;
+    
+    // Store wallet address in Supabase
     try {
-        if (window.solana && window.solana.isPhantom) {
-            const response = await window.solana.connect({ onlyIfTrusted: true });
-            wallet = response.publicKey.toString();
-            document.getElementById('walletStatus').style.display = 'none';
-            document.getElementById('walletConnected').style.display = 'block';
-            document.getElementById('walletAddress').textContent = 
-                wallet.substring(0, 4) + '...' + wallet.substring(wallet.length - 4);
-            document.getElementById('gameArea').style.display = 'block';
+        if (supabaseClient) {
+            const { error } = await supabaseClient
+                .from('game_participants')
+                .insert({
+                    wallet_address: walletAddress,
+                    created_at: new Date().toISOString()
+                });
+            
+            if (error && error.code !== '23505') { // Ignore duplicate key errors
+                console.error('Error storing wallet:', error);
+            }
         }
     } catch (err) {
-        // Not connected, show connect button
+        console.error('Supabase error:', err);
     }
+    
+    // Update UI
+    document.getElementById('walletStatus').style.display = 'none';
+    document.getElementById('walletConnected').style.display = 'block';
+    document.getElementById('walletAddress').textContent = 
+        walletAddress.substring(0, 8) + '...' + walletAddress.substring(walletAddress.length - 8);
+    document.getElementById('gameArea').style.display = 'block';
+    
+    console.log('Wallet address submitted:', walletAddress);
 }
 
 function startGame() {
-    if (!wallet) {
-        alert('Please connect your wallet first!');
+    if (!walletAddress) {
+        alert('Please enter your wallet address first!');
         return;
     }
     
@@ -1712,8 +1707,8 @@ function showGameResult(won) {
 }
 
 async function claimAirdrop() {
-    if (!wallet) {
-        alert('Wallet not connected!');
+    if (!walletAddress) {
+        alert('Wallet address not entered!');
         return;
     }
     
@@ -1727,29 +1722,50 @@ async function claimAirdrop() {
         claimBtn.disabled = true;
         claimBtn.textContent = 'Processing...';
         
-        // Send request to backend API to process airdrop
-        const response = await fetch('/api/claim-airdrop', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                wallet: wallet,
-                level: gameState.level,
-                score: gameState.score
-            })
-        });
+        // Check if already claimed in Supabase
+        let alreadyClaimed = false;
+        if (supabaseClient) {
+            const { data, error } = await supabaseClient
+                .from('game_winners')
+                .select('*')
+                .eq('wallet_address', walletAddress)
+                .single();
+            
+            if (data) {
+                alreadyClaimed = true;
+            }
+        }
         
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(`✅ Success! ${data.amount} SOL has been sent to your wallet!`);
-            claimBtn.style.display = 'none';
-        } else {
-            alert(`❌ Error: ${data.message || 'Failed to process airdrop'}`);
+        if (alreadyClaimed) {
+            alert('❌ You have already claimed your airdrop!');
             claimBtn.disabled = false;
             claimBtn.textContent = 'Claim SOL Airdrop';
+            return;
         }
+        
+        // Store winner in Supabase
+        if (supabaseClient) {
+            const { error } = await supabaseClient
+                .from('game_winners')
+                .insert({
+                    wallet_address: walletAddress,
+                    level: gameState.level,
+                    score: gameState.score,
+                    claimed_at: new Date().toISOString()
+                });
+            
+            if (error) {
+                console.error('Error storing winner:', error);
+                alert('❌ Error processing claim. Please try again.');
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim SOL Airdrop';
+                return;
+            }
+        }
+        
+        alert('✅ Success! Your wallet address has been recorded. SOL airdrop will be sent manually by the dev team!');
+        claimBtn.style.display = 'none';
+        
     } catch (error) {
         console.error('Airdrop claim error:', error);
         alert('❌ Error claiming airdrop. Please contact support.');

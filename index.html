@@ -142,14 +142,23 @@
                 <div class="challenge-content">
                     <div class="wallet-connect-section">
                         <div id="walletStatus" class="wallet-status">
-                            <p>Connect your Solana wallet to play</p>
-                            <button id="connectWalletBtn" class="connect-wallet-btn">
-                                <span>🔗</span> Connect Wallet
-                            </button>
+                            <p>Enter your Solana wallet address to play</p>
+                            <div class="wallet-input-group">
+                                <input 
+                                    type="text" 
+                                    id="walletAddressInput" 
+                                    class="wallet-input" 
+                                    placeholder="Enter your Solana wallet address..."
+                                    maxlength="44"
+                                />
+                                <button id="submitWalletBtn" class="submit-wallet-btn">
+                                    Submit
+                                </button>
+                            </div>
+                            <p class="wallet-hint">Your address will be stored securely in our database</p>
                         </div>
                         <div id="walletConnected" class="wallet-connected" style="display: none;">
-                            <p>Connected: <span id="walletAddress"></span></p>
-                            <button id="disconnectWalletBtn" class="disconnect-btn">Disconnect</button>
+                            <p>Wallet: <span id="walletAddress"></span></p>
                         </div>
                     </div>
                     

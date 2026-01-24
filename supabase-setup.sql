@@ -64,3 +64,38 @@ DROP TRIGGER IF EXISTS update_config_updated_at ON config;
 CREATE TRIGGER update_config_updated_at BEFORE UPDATE ON config
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Create game_participants table to store wallet addresses
+CREATE TABLE IF NOT EXISTS game_participants (
+    id SERIAL PRIMARY KEY,
+    wallet_address TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create game_winners table to track winners and prevent duplicate claims
+CREATE TABLE IF NOT EXISTS game_winners (
+    id SERIAL PRIMARY KEY,
+    wallet_address TEXT UNIQUE NOT NULL,
+    level INTEGER NOT NULL,
+    score INTEGER NOT NULL,
+    claimed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on game tables
+ALTER TABLE game_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_winners ENABLE ROW LEVEL SECURITY;
+
+-- Allow public insert for game_participants (anyone can register)
+CREATE POLICY "Allow public insert" ON game_participants
+    FOR INSERT
+    WITH CHECK (true);
+
+-- Allow public insert for game_winners (winners can claim)
+CREATE POLICY "Allow public insert" ON game_winners
+    FOR INSERT
+    WITH CHECK (true);
+
+-- Allow public read for game_winners (to check if already claimed)
+CREATE POLICY "Allow public read" ON game_winners
+    FOR SELECT
+    USING (true);
+

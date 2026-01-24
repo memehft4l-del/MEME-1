@@ -78,6 +78,14 @@ function initializeApp() {
         console.error('Error stack:', error.stack);
     }
     
+    // Initialize mini game
+    try {
+        initMiniGame();
+        console.log('✅ Mini game initialized');
+    } catch (error) {
+        console.error('❌ Mini game initialization failed:', error);
+    }
+    
     // Initialize Supabase FIRST to get token address, then start market cap updates
     initSupabase();
     
@@ -1553,6 +1561,113 @@ function showEasterEggMessage(message) {
         msg.classList.remove('show');
         setTimeout(() => msg.remove(), 500);
     }, 3000);
+}
+
+// Mini Game Logic
+let gameState = {
+    clicks: 0,
+    power: 1,
+    total: 0,
+    upgrades: {
+        upgrade1: false,
+        upgrade2: false,
+        upgrade3: false
+    }
+};
+
+function initMiniGame() {
+    // Load saved game state
+    const saved = localStorage.getItem('bobo_game_state');
+    if (saved) {
+        try {
+            gameState = JSON.parse(saved);
+        } catch (e) {
+            console.error('Failed to load game state:', e);
+        }
+    }
+    
+    updateGameDisplay();
+    
+    // Click button
+    const clickBtn = document.getElementById('gameClickBtn');
+    if (clickBtn) {
+        clickBtn.addEventListener('click', () => {
+            gameState.clicks++;
+            gameState.total += gameState.power;
+            updateGameDisplay();
+            saveGameState();
+            
+            // Animate emoji
+            const emoji = clickBtn.querySelector('.game-emoji');
+            if (emoji) {
+                emoji.style.animation = 'none';
+                setTimeout(() => {
+                    emoji.style.animation = 'bounce 0.5s ease';
+                }, 10);
+            }
+        });
+    }
+    
+    // Upgrade buttons
+    const upgrades = [
+        { id: 'upgrade1', cost: 10, power: 2 },
+        { id: 'upgrade2', cost: 50, power: 5 },
+        { id: 'upgrade3', cost: 200, power: 20 }
+    ];
+    
+    upgrades.forEach(upgrade => {
+        const btn = document.getElementById(upgrade.id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                if (gameState.total >= upgrade.cost && !gameState.upgrades[upgrade.id]) {
+                    gameState.total -= upgrade.cost;
+                    gameState.power += upgrade.power;
+                    gameState.upgrades[upgrade.id] = true;
+                    updateGameDisplay();
+                    saveGameState();
+                }
+            });
+        }
+    });
+}
+
+function updateGameDisplay() {
+    const clicksEl = document.getElementById('gameClicks');
+    const powerEl = document.getElementById('gamePower');
+    const totalEl = document.getElementById('gameTotal');
+    
+    if (clicksEl) clicksEl.textContent = gameState.clicks.toLocaleString();
+    if (powerEl) powerEl.textContent = gameState.power.toLocaleString();
+    if (totalEl) totalEl.textContent = gameState.total.toLocaleString();
+    
+    // Update upgrade buttons
+    const upgrades = [
+        { id: 'upgrade1', cost: 10 },
+        { id: 'upgrade2', cost: 50 },
+        { id: 'upgrade3', cost: 200 }
+    ];
+    
+    upgrades.forEach(upgrade => {
+        const btn = document.getElementById(upgrade.id);
+        if (btn) {
+            const canAfford = gameState.total >= upgrade.cost;
+            const owned = gameState.upgrades[upgrade.id];
+            
+            btn.disabled = !canAfford || owned;
+            if (owned) {
+                btn.classList.add('owned');
+                btn.textContent = btn.textContent.replace(/Cost: \d+/, 'OWNED');
+            }
+        }
+    });
+}
+
+function saveGameState() {
+    try {
+        localStorage.setItem('bobo_game_state', JSON.stringify(gameState));
+    } catch (e) {
+        console.error('Failed to save game state:', e);
+    }
 }
 
 

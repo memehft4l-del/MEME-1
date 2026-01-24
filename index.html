@@ -189,11 +189,16 @@
                                 <span>Score: <strong id="gameScore">0</strong></span>
                                 <span>Time: <strong id="gameTime">30</strong>s</span>
                             </div>
-                            <p class="game-instructions">
-                                Find the green squares! They move randomly - be quick!
+                            <p class="game-instructions" id="gameInstructions">
+                                Click the button below to start! You'll need fast reflexes.
                             </p>
                         </div>
-                        <div id="gameGrid" class="game-grid"></div>
+                        <div id="gameContainer" class="game-container">
+                            <button id="startGameBtn" class="start-game-btn">START GAME</button>
+                            <div id="gamePlayArea" class="game-play-area" style="display: none;">
+                                <div id="targetButton" class="target-button"></div>
+                            </div>
+                        </div>
                         <div id="gameResult" class="game-result" style="display: none;">
                             <h4 id="resultMessage"></h4>
                             <button id="claimAirdropBtn" class="claim-btn" style="display: none;">

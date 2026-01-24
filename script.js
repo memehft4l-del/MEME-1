@@ -1464,15 +1464,14 @@ let walletAddress = null;
 let gameState = {
     level: 1,
     score: 0,
-    timeLeft: 20,
-    targetScore: 0,
+    timeLeft: 30,
     gameActive: false,
     gameTimer: null,
-    completedLevels: [],
-    targetsFound: 0,
+    targetTimer: null,
+    targetsHit: 0,
     targetsNeeded: 0,
-    shuffleInterval: null,
-    cellsClicked: 0
+    targetSpeed: 2000,
+    misses: 0
 };
 
 // Initialize challenge game
@@ -1493,10 +1492,26 @@ function initChallengeGame() {
         });
     }
     
+    // Start game button
+    const startGameBtn = document.getElementById('startGameBtn');
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', startGame);
+    }
+    
+    // Target button click
+    const targetButton = document.getElementById('targetButton');
+    if (targetButton) {
+        targetButton.addEventListener('click', hitTarget);
+    }
+    
     // Play again button
     const playAgainBtn = document.getElementById('playAgainBtn');
     if (playAgainBtn) {
-        playAgainBtn.addEventListener('click', startGame);
+        playAgainBtn.addEventListener('click', () => {
+            document.getElementById('gameResult').style.display = 'none';
+            document.getElementById('startGameBtn').style.display = 'block';
+            document.getElementById('gamePlayArea').style.display = 'none';
+        });
     }
     
     // Claim airdrop button
@@ -1562,215 +1577,129 @@ function startGame() {
         return;
     }
     
+    // Reset game state
     gameState.level = 1;
     gameState.score = 0;
-    gameState.timeLeft = 20;
-    gameState.targetScore = 0;
+    gameState.timeLeft = 30;
     gameState.gameActive = true;
-    gameState.completedLevels = [];
-    gameState.targetsFound = 0;
-    gameState.cellsClicked = 0;
+    gameState.targetsHit = 0;
+    gameState.targetsNeeded = 10; // Need to hit 10 targets per level
+    gameState.targetSpeed = 2000; // 2 seconds to click
+    gameState.misses = 0;
     
-    // Clear any existing intervals
-    if (gameState.shuffleInterval) {
-        clearInterval(gameState.shuffleInterval);
-        gameState.shuffleInterval = null;
-    }
+    // Clear any existing timers
+    if (gameState.gameTimer) clearInterval(gameState.gameTimer);
+    if (gameState.targetTimer) clearInterval(gameState.targetTimer);
     
+    // Show game area
+    document.getElementById('startGameBtn').style.display = 'none';
+    document.getElementById('gamePlayArea').style.display = 'block';
     document.getElementById('gameResult').style.display = 'none';
+    
     updateGameDisplay();
-    createGameGrid();
     startTimer();
+    spawnTarget();
 }
 
-function createGameGrid() {
-    const grid = document.getElementById('gameGrid');
-    grid.innerHTML = '';
-    grid.className = 'game-grid';
+function spawnTarget() {
+    if (!gameState.gameActive) return;
     
-    // Harder: Larger grid, more targets needed
-    const gridSize = Math.min(6 + gameState.level, 10); // 7x7 to 10x10
-    grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    const targetButton = document.getElementById('targetButton');
+    const playArea = document.getElementById('gamePlayArea');
     
-    const totalCells = gridSize * gridSize;
-    // More targets needed: level 1 = 5, level 5 = 15+
-    gameState.targetsNeeded = Math.min(5 + (gameState.level * 2), 20);
-    gameState.targetsFound = 0;
+    if (!targetButton || !playArea) return;
     
-    // Create cells
-    for (let i = 0; i < totalCells; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'game-cell';
-        cell.dataset.index = i;
-        cell.dataset.isTarget = 'false';
-        grid.appendChild(cell);
-    }
+    // Random position
+    const maxX = playArea.clientWidth - 80;
+    const maxY = playArea.clientHeight - 80;
+    const x = Math.random() * maxX;
+    const y = Math.random() * maxY;
     
-    // Randomly select target cells (more random distribution)
-    const targetIndices = [];
-    const shuffledIndices = Array.from({length: totalCells}, (_, i) => i)
-        .sort(() => Math.random() - 0.5);
+    targetButton.style.left = x + 'px';
+    targetButton.style.top = y + 'px';
+    targetButton.style.display = 'block';
+    targetButton.style.opacity = '1';
+    targetButton.classList.add('target-visible');
     
-    for (let i = 0; i < gameState.targetsNeeded && i < shuffledIndices.length; i++) {
-        targetIndices.push(shuffledIndices[i]);
-    }
-    
-    // Mark target cells (but don't show them immediately)
-    targetIndices.forEach(idx => {
-        const cell = grid.children[idx];
-        cell.dataset.isTarget = 'true';
-        cell.classList.add('target-cell');
-    });
-    
-    // Add click listeners to all cells
-    Array.from(grid.children).forEach(cell => {
-        cell.addEventListener('click', (e) => {
-            if (cell.dataset.isTarget === 'true') {
-                handleCellClick(e);
-            } else {
-                handleWrongClick(e);
+    // Target disappears after timeout (miss)
+    gameState.targetTimer = setTimeout(() => {
+        if (targetButton.classList.contains('target-visible')) {
+            targetButton.classList.remove('target-visible');
+            targetButton.style.display = 'none';
+            gameState.misses++;
+            
+            // Lose time for missing
+            gameState.timeLeft = Math.max(0, gameState.timeLeft - 1);
+            updateGameDisplay();
+            
+            // Spawn next target
+            if (gameState.gameActive) {
+                spawnTarget();
             }
-        });
-    });
-    
-    // Start shuffling targets randomly (makes it much harder!)
-    startShufflingTargets();
-}
-
-function startShufflingTargets() {
-    if (gameState.shuffleInterval) {
-        clearInterval(gameState.shuffleInterval);
-    }
-    
-    // Shuffle targets every 1.5-3 seconds (random interval)
-    const shuffleDelay = () => 1500 + Math.random() * 1500;
-    
-    gameState.shuffleInterval = setInterval(() => {
-        if (!gameState.gameActive) {
-            clearInterval(gameState.shuffleInterval);
-            return;
         }
-        
-        shuffleTargets();
-    }, shuffleDelay());
+    }, gameState.targetSpeed);
 }
 
-function shuffleTargets() {
-    const grid = document.getElementById('gameGrid');
-    if (!grid) return;
-    
-    const cells = Array.from(grid.children);
-    const targetCells = cells.filter(cell => cell.dataset.isTarget === 'true' && !cell.classList.contains('clicked'));
-    const emptyCells = cells.filter(cell => cell.dataset.isTarget === 'false' && !cell.classList.contains('clicked'));
-    
-    if (targetCells.length === 0 || emptyCells.length === 0) return;
-    
-    // Randomly move some targets to new positions
-    const numToShuffle = Math.min(Math.floor(targetCells.length * 0.3), emptyCells.length);
-    
-    for (let i = 0; i < numToShuffle; i++) {
-        const targetCell = targetCells[Math.floor(Math.random() * targetCells.length)];
-        const newCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-        
-        // Swap positions
-        targetCell.classList.remove('target-cell');
-        targetCell.dataset.isTarget = 'false';
-        
-        newCell.classList.add('target-cell');
-        newCell.dataset.isTarget = 'true';
-    }
-}
-
-function handleCellClick(e) {
+function hitTarget() {
     if (!gameState.gameActive) return;
     
-    const cell = e.target;
-    if (cell.classList.contains('clicked')) return;
+    const targetButton = document.getElementById('targetButton');
+    if (!targetButton || !targetButton.classList.contains('target-visible')) return;
     
-    cell.classList.add('clicked');
-    cell.classList.remove('target-cell');
-    gameState.targetsFound++;
-    gameState.score += gameState.level; // More points for higher levels
-    gameState.cellsClicked++;
+    // Clear timeout
+    if (gameState.targetTimer) {
+        clearTimeout(gameState.targetTimer);
+        gameState.targetTimer = null;
+    }
+    
+    // Hide target
+    targetButton.classList.remove('target-visible');
+    targetButton.style.display = 'none';
+    
+    // Update score
+    gameState.targetsHit++;
+    gameState.score += gameState.level * 10;
     
     updateGameDisplay();
     
-    // Visual feedback
-    cell.style.backgroundColor = '#4ade80';
-    setTimeout(() => {
-        cell.style.backgroundColor = '';
-    }, 300);
-    
-    // Check if level complete
-    if (gameState.targetsFound >= gameState.targetsNeeded) {
+    // Check level complete
+    if (gameState.targetsHit >= gameState.targetsNeeded) {
         completeLevel();
-    }
-}
-
-function handleWrongClick(e) {
-    if (!gameState.gameActive) return;
-    
-    const cell = e.target;
-    if (cell.classList.contains('clicked')) return;
-    
-    cell.classList.add('clicked');
-    gameState.cellsClicked++;
-    
-    // Harder: Lose more points/time for wrong clicks
-    gameState.score = Math.max(0, gameState.score - (gameState.level * 2));
-    gameState.timeLeft = Math.max(0, gameState.timeLeft - 2); // Lose 2 seconds per wrong click
-    
-    updateGameDisplay();
-    
-    // Visual feedback
-    cell.style.backgroundColor = '#ef4444';
-    cell.style.animation = 'shake 0.3s';
-    setTimeout(() => {
-        cell.style.backgroundColor = '';
-        cell.style.animation = '';
-    }, 300);
-    
-    // Check if time ran out
-    if (gameState.timeLeft <= 0) {
-        gameState.gameActive = false;
-        stopTimer();
-        showGameResult(false);
+    } else {
+        // Spawn next target (faster each time)
+        gameState.targetSpeed = Math.max(800, gameState.targetSpeed - 50);
+        spawnTarget();
     }
 }
 
 function completeLevel() {
-    gameState.completedLevels.push(gameState.level);
-    
-    // Stop shuffling
-    if (gameState.shuffleInterval) {
-        clearInterval(gameState.shuffleInterval);
-        gameState.shuffleInterval = null;
-    }
-    
     if (gameState.level >= 5) {
         // Game won!
         gameState.gameActive = false;
         stopTimer();
+        if (gameState.targetTimer) {
+            clearTimeout(gameState.targetTimer);
+        }
         showGameResult(true);
     } else {
         // Next level - harder!
         gameState.level++;
-        // Less time per level, but bonus time for completing previous level
-        gameState.timeLeft = Math.max(15 - (gameState.level * 2), 8) + 3; // 18s -> 16s -> 14s -> 12s -> 10s + 3 bonus
-        gameState.targetsFound = 0;
-        gameState.cellsClicked = 0;
+        gameState.targetsHit = 0;
+        gameState.targetsNeeded = 10 + (gameState.level * 2); // More targets needed
+        gameState.targetSpeed = Math.max(1000, 2000 - (gameState.level * 200)); // Faster targets
+        gameState.timeLeft += 5; // Bonus time
         
         // Show level complete message
-        const grid = document.getElementById('gameGrid');
-        const message = document.createElement('div');
-        message.className = 'level-complete-message';
-        message.textContent = `Level ${gameState.level - 1} Complete!`;
-        grid.appendChild(message);
+        const instructions = document.getElementById('gameInstructions');
+        if (instructions) {
+            instructions.textContent = `Level ${gameState.level - 1} Complete! Starting Level ${gameState.level}...`;
+            setTimeout(() => {
+                instructions.textContent = `Hit ${gameState.targetsNeeded} targets! They appear faster each level!`;
+            }, 2000);
+        }
         
-        setTimeout(() => {
-            message.remove();
-            createGameGrid();
-        }, 1500);
+        // Continue to next level
+        spawnTarget();
     }
 }
 
@@ -1779,24 +1708,15 @@ function startTimer() {
         gameState.timeLeft--;
         updateGameDisplay();
         
-        // Visual warning when time is low
-        const timeEl = document.getElementById('gameTime');
-        if (timeEl) {
-            if (gameState.timeLeft <= 5) {
-                timeEl.style.color = '#ef4444';
-                timeEl.style.animation = 'pulse 0.5s infinite';
-            } else {
-                timeEl.style.color = '';
-                timeEl.style.animation = '';
-            }
-        }
-        
         if (gameState.timeLeft <= 0) {
             gameState.gameActive = false;
             stopTimer();
-            if (gameState.shuffleInterval) {
-                clearInterval(gameState.shuffleInterval);
-                gameState.shuffleInterval = null;
+            if (gameState.targetTimer) {
+                clearTimeout(gameState.targetTimer);
+            }
+            const targetButton = document.getElementById('targetButton');
+            if (targetButton) {
+                targetButton.style.display = 'none';
             }
             showGameResult(false);
         }
@@ -1813,21 +1733,39 @@ function stopTimer() {
 function stopGame() {
     gameState.gameActive = false;
     stopTimer();
-    if (gameState.shuffleInterval) {
-        clearInterval(gameState.shuffleInterval);
-        gameState.shuffleInterval = null;
+    if (gameState.targetTimer) {
+        clearTimeout(gameState.targetTimer);
+        gameState.targetTimer = null;
+    }
+    const targetButton = document.getElementById('targetButton');
+    if (targetButton) {
+        targetButton.style.display = 'none';
     }
 }
 
 function updateGameDisplay() {
-    document.getElementById('gameLevel').textContent = gameState.level;
-    document.getElementById('gameScore').textContent = gameState.score;
-    document.getElementById('gameTime').textContent = gameState.timeLeft;
+    const levelEl = document.getElementById('gameLevel');
+    const scoreEl = document.getElementById('gameScore');
+    const timeEl = document.getElementById('gameTime');
+    
+    if (levelEl) levelEl.textContent = gameState.level;
+    if (scoreEl) scoreEl.textContent = gameState.score;
+    if (timeEl) {
+        timeEl.textContent = gameState.timeLeft;
+        // Visual warning when time is low
+        if (gameState.timeLeft <= 5) {
+            timeEl.style.color = '#ef4444';
+            timeEl.style.animation = 'pulse 0.5s infinite';
+        } else {
+            timeEl.style.color = '';
+            timeEl.style.animation = '';
+        }
+    }
     
     // Update instructions
-    const instructionsEl = document.querySelector('.game-instructions');
-    if (instructionsEl) {
-        instructionsEl.textContent = `Find ${gameState.targetsNeeded} green squares! Found: ${gameState.targetsFound}/${gameState.targetsNeeded} (They move randomly!)`;
+    const instructionsEl = document.getElementById('gameInstructions');
+    if (instructionsEl && gameState.gameActive) {
+        instructionsEl.textContent = `Hit ${gameState.targetsNeeded} targets! Progress: ${gameState.targetsHit}/${gameState.targetsNeeded}`;
     }
 }
 

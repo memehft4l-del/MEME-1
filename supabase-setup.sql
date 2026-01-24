@@ -116,3 +116,37 @@ FROM game_winners
 GROUP BY wallet_address
 ORDER BY highest_level DESC, best_score DESC, last_claimed ASC;
 
+-- Create casino_bets table to track all casino bets
+CREATE TABLE IF NOT EXISTS casino_bets (
+    id SERIAL PRIMARY KEY,
+    wallet_address TEXT NOT NULL,
+    bet_amount NUMERIC(20, 9) NOT NULL,
+    bet_type TEXT NOT NULL,
+    game_result TEXT NOT NULL,
+    win_amount NUMERIC(20, 9) DEFAULT 0,
+    payout_amount NUMERIC(20, 9) DEFAULT 0,
+    house_fee NUMERIC(20, 9) DEFAULT 0,
+    transaction_signature TEXT,
+    payout_signature TEXT,
+    status TEXT DEFAULT 'pending', -- pending, confirmed, paid, failed
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on casino_bets
+ALTER TABLE casino_bets ENABLE ROW LEVEL SECURITY;
+
+-- Allow public insert for casino_bets (players can place bets)
+CREATE POLICY "Allow public insert" ON casino_bets
+    FOR INSERT
+    WITH CHECK (true);
+
+-- Allow public read for casino_bets (to display stats)
+CREATE POLICY "Allow public read" ON casino_bets
+    FOR SELECT
+    USING (true);
+
+-- Create trigger to update updated_at on casino_bets
+CREATE TRIGGER update_casino_bets_updated_at BEFORE UPDATE ON casino_bets
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+

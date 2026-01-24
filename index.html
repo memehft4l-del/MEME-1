@@ -164,6 +164,7 @@
                 <div class="game-buttons">
                     <button id="game1Btn" class="game-select-btn active">Reaction Game</button>
                     <button id="game2Btn" class="game-select-btn">Memory Game</button>
+                    <button id="casinoBtn" class="game-select-btn">🎰 Casino</button>
                 </div>
             </div>
         </div>
@@ -271,6 +272,79 @@
                                 Claim SOL Airdrop
                             </button>
                             <button id="playAgainBtn2" class="play-again-btn">Play Again</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Casino Game Section -->
+        <div class="challenge-game-section" id="casinoGame" style="display: none;">
+            <div class="panel-section challenge-panel">
+                <h3>🎰 BOBO CASINO - Bet on Yourself!</h3>
+                <div class="challenge-content">
+                    <div class="wallet-connect-section">
+                        <div id="walletStatus3" class="wallet-status">
+                            <p>Enter your Solana wallet address to play</p>
+                            <div class="wallet-input-group">
+                                <input 
+                                    type="text" 
+                                    id="walletAddressInput3" 
+                                    class="wallet-input" 
+                                    placeholder="Enter your Solana wallet address..."
+                                    maxlength="44"
+                                />
+                                <button id="submitWalletBtn3" class="submit-wallet-btn">
+                                    Submit
+                                </button>
+                            </div>
+                            <p class="wallet-hint">Your address will be stored securely in our database</p>
+                        </div>
+                        <div id="walletConnected3" class="wallet-connected" style="display: none;">
+                            <p>Wallet: <span id="walletAddress3"></span></p>
+                        </div>
+                    </div>
+                    
+                    <div id="casinoArea" class="game-area" style="display: none;">
+                        <div class="casino-info">
+                            <div class="casino-stats">
+                                <div class="casino-stat-box">
+                                    <div class="stat-label">Your Balance</div>
+                                    <div class="stat-value" id="casinoBalance">0.0000 SOL</div>
+                                </div>
+                                <div class="casino-stat-box">
+                                    <div class="stat-label">Total Wagered</div>
+                                    <div class="stat-value" id="totalWagered">0.0000 SOL</div>
+                                </div>
+                                <div class="casino-stat-box">
+                                    <div class="stat-label">Total Won</div>
+                                    <div class="stat-value" id="totalWon">0.0000 SOL</div>
+                                </div>
+                            </div>
+                            
+                            <div class="bet-section">
+                                <h4>Place Your Bet</h4>
+                                <p class="bet-info">Bet Amount: <strong>0.1 SOL</strong> (Fixed)</p>
+                                <p class="bet-info">House Fee: <strong>5%</strong> | Odds: <strong>45% Win</strong></p>
+                                <p class="bet-instructions">Send exactly 0.1 SOL to the address below, then click "Verify Bet"</p>
+                                
+                                <div class="dev-wallet-display">
+                                    <div class="wallet-address-box">
+                                        <span class="wallet-label">Send SOL to:</span>
+                                        <span class="wallet-address" id="devWalletAddress">7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN</span>
+                                        <button class="copy-btn" id="copyWalletBtn">📋 Copy</button>
+                                    </div>
+                                </div>
+                                
+                                <button id="verifyBetBtn" class="verify-bet-btn">Verify Bet & Play</button>
+                                <div id="betStatus" class="bet-status"></div>
+                            </div>
+                            
+                            <div id="gameResult3" class="game-result" style="display: none;">
+                                <h4 id="resultMessage3"></h4>
+                                <div id="payoutInfo" class="payout-info"></div>
+                                <button id="playAgainBtn3" class="play-again-btn">Play Again</button>
+                            </div>
                         </div>
                     </div>
                 </div>

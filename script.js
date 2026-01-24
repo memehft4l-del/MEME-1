@@ -24,6 +24,10 @@ let easterEggsActive = {
 // API Configuration
 const HELIUS_API_URL = 'https://mainnet.helius-rpc.com/?api-key=5b8196dc-7a4b-43fa-80f0-8f285ccf318b';
 const PAYOUT_WALLET = '7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN';
+const DEV_WALLET = '7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN';
+const BET_AMOUNT = 0.1; // Fixed bet amount in SOL
+const HOUSE_FEE_PERCENT = 5; // 5% house fee
+const WIN_PROBABILITY = 0.45; // 45% chance to win (house edge)
 let totalSolPaidOut = 0;
 
 // Supabase Configuration
@@ -103,6 +107,14 @@ function initializeApp() {
         console.log('✅ Game selection initialized');
     } catch (error) {
         console.error('❌ Game selection initialization failed:', error);
+    }
+    
+    // Initialize casino game
+    try {
+        initCasinoGame();
+        console.log('✅ Casino game initialized');
+    } catch (error) {
+        console.error('❌ Casino game initialization failed:', error);
     }
     
     // Initialize leaderboard (wait a bit for Supabase to be ready)
@@ -2248,15 +2260,19 @@ async function getTransactionDetails(signature) {
 function initGameSelection() {
     const game1Btn = document.getElementById('game1Btn');
     const game2Btn = document.getElementById('game2Btn');
+    const casinoBtn = document.getElementById('casinoBtn');
     const reactionGame = document.getElementById('reactionGame');
     const memoryGame = document.getElementById('memoryGame');
+    const casinoGame = document.getElementById('casinoGame');
     
     if (game1Btn) {
         game1Btn.addEventListener('click', () => {
             game1Btn.classList.add('active');
             if (game2Btn) game2Btn.classList.remove('active');
+            if (casinoBtn) casinoBtn.classList.remove('active');
             if (reactionGame) reactionGame.style.display = 'block';
             if (memoryGame) memoryGame.style.display = 'none';
+            if (casinoGame) casinoGame.style.display = 'none';
         });
     }
     
@@ -2264,8 +2280,21 @@ function initGameSelection() {
         game2Btn.addEventListener('click', () => {
             game2Btn.classList.add('active');
             if (game1Btn) game1Btn.classList.remove('active');
+            if (casinoBtn) casinoBtn.classList.remove('active');
             if (reactionGame) reactionGame.style.display = 'none';
             if (memoryGame) memoryGame.style.display = 'block';
+            if (casinoGame) casinoGame.style.display = 'none';
+        });
+    }
+    
+    if (casinoBtn) {
+        casinoBtn.addEventListener('click', () => {
+            casinoBtn.classList.add('active');
+            if (game1Btn) game1Btn.classList.remove('active');
+            if (game2Btn) game2Btn.classList.remove('active');
+            if (reactionGame) reactionGame.style.display = 'none';
+            if (memoryGame) memoryGame.style.display = 'none';
+            if (casinoGame) casinoGame.style.display = 'block';
         });
     }
 }

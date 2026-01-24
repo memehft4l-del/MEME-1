@@ -901,6 +901,14 @@ body > * {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Level 5: Smaller, harder to click targets */
+.game-play-area.level-5 .target-button {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 15px rgba(74, 222, 128, 0.9);
+}
+
 .target-button:hover {
     transform: scale(1.1);
 }

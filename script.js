@@ -1630,7 +1630,9 @@ function startGame() {
     
     // Show game area
     document.getElementById('startGameBtn').style.display = 'none';
-    document.getElementById('gamePlayArea').style.display = 'block';
+    const playArea = document.getElementById('gamePlayArea');
+    playArea.style.display = 'block';
+    playArea.classList.remove('level-5'); // Reset level class
     document.getElementById('gameResult').style.display = 'none';
     
     updateGameDisplay();
@@ -1646,9 +1648,15 @@ function spawnTarget() {
     
     if (!targetButton || !playArea) return;
     
-    // Get actual dimensions (account for mobile)
+    // Get actual dimensions (account for mobile and level 5)
     const playAreaRect = playArea.getBoundingClientRect();
-    const buttonSize = window.innerWidth <= 480 ? 60 : window.innerWidth <= 768 ? 70 : 80;
+    let buttonSize;
+    if (gameState.level === 5) {
+        // Level 5: Smaller targets
+        buttonSize = window.innerWidth <= 480 ? 50 : window.innerWidth <= 768 ? 55 : 60;
+    } else {
+        buttonSize = window.innerWidth <= 480 ? 60 : window.innerWidth <= 768 ? 70 : 80;
+    }
     const maxX = playAreaRect.width - buttonSize;
     const maxY = playAreaRect.height - buttonSize;
     
@@ -1671,8 +1679,9 @@ function spawnTarget() {
             targetButton.style.display = 'none';
             gameState.misses++;
             
-            // Lose time for missing
-            gameState.timeLeft = Math.max(0, gameState.timeLeft - 1);
+            // Lose time for missing (more penalty on level 5)
+            const timePenalty = gameState.level === 5 ? 2 : 1;
+            gameState.timeLeft = Math.max(0, gameState.timeLeft - timePenalty);
             updateGameDisplay();
             
             // Spawn next target
@@ -1709,8 +1718,13 @@ function hitTarget() {
     if (gameState.targetsHit >= gameState.targetsNeeded) {
         completeLevel();
     } else {
-        // Spawn next target (faster each time)
-        gameState.targetSpeed = Math.max(800, gameState.targetSpeed - 50);
+        // Spawn next target (faster each time, but level 5 doesn't get faster)
+        if (gameState.level < 5) {
+            gameState.targetSpeed = Math.max(800, gameState.targetSpeed - 50);
+        } else {
+            // Level 5: Speed stays the same or gets slightly faster (but not too much)
+            gameState.targetSpeed = Math.max(500, gameState.targetSpeed - 10);
+        }
         spawnTarget();
     }
 }
@@ -1729,17 +1743,39 @@ function completeLevel() {
         // Next level - harder!
         gameState.level++;
         gameState.targetsHit = 0;
-        gameState.targetsNeeded = 14 + ((gameState.level - 3) * 2); // Level 3: 14, Level 4: 16, Level 5: 18
-        gameState.targetSpeed = Math.max(800, 1500 - ((gameState.level - 3) * 200)); // Faster targets
-        gameState.timeLeft += 3; // Small bonus time
+        
+        // Level 5 is EXTREMELY hard - almost impossible
+        if (gameState.level === 5) {
+            gameState.targetsNeeded = 30; // Need to hit 30 targets (was 18)
+            gameState.targetSpeed = 600; // Only 0.6 seconds to click (was 1100ms)
+            gameState.timeLeft = Math.max(gameState.timeLeft, 20); // Max 20 seconds, no bonus
+            
+            // Add level-5 class for smaller targets
+            const playArea = document.getElementById('gamePlayArea');
+            if (playArea) {
+                playArea.classList.add('level-5');
+            }
+        } else {
+            // Level 3: 14 targets, Level 4: 16 targets
+            gameState.targetsNeeded = 14 + ((gameState.level - 3) * 2);
+            gameState.targetSpeed = Math.max(800, 1500 - ((gameState.level - 3) * 200));
+            gameState.timeLeft += 3; // Small bonus time
+        }
         
         // Show level complete message
         const instructions = document.getElementById('gameInstructions');
         if (instructions) {
-            instructions.textContent = `Level ${gameState.level - 1} Complete! Starting Level ${gameState.level}...`;
-            setTimeout(() => {
-                instructions.textContent = `Hit ${gameState.targetsNeeded} targets! Complete Level 5 to win SOL airdrop!`;
-            }, 2000);
+            if (gameState.level === 5) {
+                instructions.textContent = `⚠️ FINAL LEVEL - EXTREME DIFFICULTY ⚠️`;
+                setTimeout(() => {
+                    instructions.textContent = `Hit ${gameState.targetsNeeded} targets in ${gameState.timeLeft}s! Targets appear for only ${gameState.targetSpeed}ms!`;
+                }, 2000);
+            } else {
+                instructions.textContent = `Level ${gameState.level - 1} Complete! Starting Level ${gameState.level}...`;
+                setTimeout(() => {
+                    instructions.textContent = `Hit ${gameState.targetsNeeded} targets! Complete Level 5 to win SOL airdrop!`;
+                }, 2000);
+            }
         }
         
         // Continue to next level
@@ -1809,7 +1845,11 @@ function updateGameDisplay() {
     // Update instructions
     const instructionsEl = document.getElementById('gameInstructions');
     if (instructionsEl && gameState.gameActive) {
-        instructionsEl.textContent = `Level ${gameState.level}: Hit ${gameState.targetsNeeded} targets! Progress: ${gameState.targetsHit}/${gameState.targetsNeeded} (Complete Level 5 to win!)`;
+        if (gameState.level === 5) {
+            instructionsEl.textContent = `⚠️ LEVEL 5: ${gameState.targetsHit}/${gameState.targetsNeeded} targets | ${gameState.timeLeft}s left | ${gameState.targetSpeed}ms per target ⚠️`;
+        } else {
+            instructionsEl.textContent = `Level ${gameState.level}: Hit ${gameState.targetsNeeded} targets! Progress: ${gameState.targetsHit}/${gameState.targetsNeeded} (Complete Level 5 to win!)`;
+        }
     }
 }
 

@@ -2742,6 +2742,9 @@ async function submitWalletCasino() {
     
     casinoState.walletAddress = address;
     
+    // Store wallet address in localStorage for persistence
+    localStorage.setItem('casino_wallet_address', address);
+    
     // Store wallet address
     try {
         if (supabaseClient) {

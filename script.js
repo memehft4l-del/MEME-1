@@ -2764,19 +2764,34 @@ async function submitWalletCasino() {
     // Store wallet address in localStorage for persistence
     localStorage.setItem('casino_wallet_address', address);
     
-    // Store wallet address
+    // Store wallet address in game_participants
     try {
         if (supabaseClient) {
-            const { error } = await supabaseClient.from('game_participants').insert({
-                wallet_address: address,
-                created_at: new Date().toISOString()
-            });
-            if (error && error.code !== '23505') {
-                console.error('Error storing wallet:', error);
+            console.log('Storing wallet address in game_participants:', address);
+            const { data, error } = await supabaseClient
+                .from('game_participants')
+                .insert({
+                    wallet_address: address,
+                    created_at: new Date().toISOString()
+                })
+                .select();
+            
+            if (error) {
+                if (error.code === '23505') {
+                    console.log('Wallet already exists in game_participants (duplicate)');
+                } else {
+                    console.error('❌ Error storing wallet in game_participants:', error);
+                    console.error('Error code:', error.code);
+                    console.error('Error message:', error.message);
+                }
+            } else {
+                console.log('✅ Wallet stored in game_participants:', data);
             }
+        } else {
+            console.error('❌ Supabase client not available for game_participants');
         }
     } catch (err) {
-        console.error('Supabase error:', err);
+        console.error('❌ Exception storing wallet:', err);
     }
     
     // Update UI
@@ -3191,11 +3206,17 @@ async function processBet(transaction) {
         if (supabaseClient) {
             try {
                 // First, get existing record to calculate new values
-                const { data: existing } = await supabaseClient
+                const { data: existing, error: selectError } = await supabaseClient
                     .from('casino_bets')
                     .select('*')
                     .eq('wallet_address', casinoState.walletAddress)
                     .maybeSingle();
+                
+                if (selectError) {
+                    console.error('Error selecting existing record:', selectError);
+                }
+                
+                console.log('Existing record:', existing);
                 
                 // Calculate new values
                 const currentBets = (existing?.total_bets || 0) + 1;
@@ -3204,98 +3225,61 @@ async function processBet(transaction) {
                 const currentWagered = parseFloat(existing?.total_wagered || 0) + BET_AMOUNT;
                 const currentWon = isWin ? parseFloat(existing?.total_won || 0) + winAmount : parseFloat(existing?.total_won || 0);
                 const currentPaidOut = isWin ? parseFloat(existing?.total_paid_out || 0) + payoutAmount : parseFloat(existing?.total_paid_out || 0);
+                const currentHouseFee = parseFloat(existing?.house_fee_collected || 0) + houseFee;
                 
-                console.log('Updating stats:', {
+                console.log('Calculated new values:', {
                     currentBets,
                     currentWins,
                     currentLosses,
                     currentWagered,
                     currentWon,
-                    currentPaidOut
+                    currentPaidOut,
+                    currentHouseFee
                 });
                 
-                // Build upsert data with all columns
+                // Build upsert data - use numeric values directly, Supabase will handle conversion
                 const upsertData = {
                     wallet_address: casinoState.walletAddress,
                     total_bets: currentBets,
                     total_wins: currentWins,
                     total_losses: currentLosses,
-                    total_wagered: currentWagered.toString(),
-                    total_won: currentWon.toString(),
-                    total_paid_out: currentPaidOut.toString(),
-                    house_fee_collected: (parseFloat(existing?.house_fee_collected || 0) + houseFee).toString(),
+                    total_wagered: currentWagered,
+                    total_won: currentWon,
+                    total_paid_out: currentPaidOut,
+                    house_fee_collected: currentHouseFee,
                     last_bet_at: new Date().toISOString()
                 };
                 
                 console.log('Attempting to upsert:', upsertData);
                 
-                // Try upsert with all columns first
+                // Use upsert - this will insert if new, update if exists
                 const { data: upsertResult, error: upsertError } = await supabaseClient
                     .from('casino_bets')
                     .upsert(upsertData, {
-                        onConflict: 'wallet_address',
-                        ignoreDuplicates: false
+                        onConflict: 'wallet_address'
                     })
                     .select();
                 
                 if (upsertError) {
                     console.error('❌ Upsert error:', upsertError);
-                    console.error('Error details:', JSON.stringify(upsertError, null, 2));
+                    console.error('Error code:', upsertError.code);
+                    console.error('Error message:', upsertError.message);
+                    console.error('Error details:', upsertError);
                     
-                    // Try with just the required columns
-                    const minimalData = {
-                        wallet_address: casinoState.walletAddress,
-                        total_bets: currentBets,
-                        total_wins: currentWins,
-                        total_losses: currentLosses
-                    };
-                    
-                    console.log('Trying minimal upsert:', minimalData);
-                    
-                    const { data: minimalResult, error: retryError } = await supabaseClient
-                        .from('casino_bets')
-                        .upsert(minimalData, {
-                            onConflict: 'wallet_address',
-                            ignoreDuplicates: false
-                        })
-                        .select();
-                    
-                    if (retryError) {
-                        console.error('❌ Minimal upsert also failed:', retryError);
-                        console.error('Retry error details:', JSON.stringify(retryError, null, 2));
-                    } else {
-                        console.log('✅ Bet saved with minimal columns:', minimalResult);
-                        
-                        // Try to update the numeric columns separately if they exist
-                        try {
-                            const updateData = {};
-                            if (existing?.total_wagered !== undefined) updateData.total_wagered = currentWagered.toString();
-                            if (existing?.total_won !== undefined) updateData.total_won = currentWon.toString();
-                            if (existing?.total_paid_out !== undefined) updateData.total_paid_out = currentPaidOut.toString();
-                            
-                            if (Object.keys(updateData).length > 0) {
-                                const { error: updateError } = await supabaseClient
-                                    .from('casino_bets')
-                                    .update(updateData)
-                                    .eq('wallet_address', casinoState.walletAddress);
-                                
-                                if (updateError) {
-                                    console.error('Update error:', updateError);
-                                } else {
-                                    console.log('✅ Updated numeric columns');
-                                }
-                            }
-                        } catch (e) {
-                            console.log('Could not update numeric columns:', e);
-                        }
+                    // Alert user that stats might not be saved
+                    if (statusEl) {
+                        statusEl.textContent += ' (Stats may not have saved - check console)';
                     }
                 } else {
-                    console.log('✅ Bet saved to Supabase successfully:', upsertResult);
+                    console.log('✅ Bet saved to Supabase successfully!');
+                    console.log('Saved data:', upsertResult);
                 }
             } catch (dbError) {
-                console.error('Database error:', dbError);
-                // Don't throw - allow the game to continue even if DB save fails
+                console.error('❌ Database error:', dbError);
+                console.error('Error stack:', dbError.stack);
             }
+        } else {
+            console.error('❌ Supabase client not available');
         }
         
         // Show result

@@ -84,6 +84,12 @@ CREATE TABLE IF NOT EXISTS game_winners (
 ALTER TABLE game_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_winners ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to avoid conflicts when re-running)
+DROP POLICY IF EXISTS "Allow public insert" ON game_participants;
+DROP POLICY IF EXISTS "Allow public read" ON game_participants;
+DROP POLICY IF EXISTS "Allow public insert" ON game_winners;
+DROP POLICY IF EXISTS "Allow public read" ON game_winners;
+
 -- Allow public insert for game_participants (anyone can register)
 CREATE POLICY "Allow public insert" ON game_participants
     FOR INSERT
@@ -135,6 +141,10 @@ CREATE TABLE IF NOT EXISTS casino_bets (
 
 -- Enable RLS on casino_bets
 ALTER TABLE casino_bets ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (to avoid conflicts when re-running)
+DROP POLICY IF EXISTS "Allow public insert" ON casino_bets;
+DROP POLICY IF EXISTS "Allow public read" ON casino_bets;
 
 -- Allow public insert for casino_bets (players can place bets)
 CREATE POLICY "Allow public insert" ON casino_bets

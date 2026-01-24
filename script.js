@@ -2786,57 +2786,26 @@ async function verifyAndPlayBet() {
     
     if (verifyBtn) verifyBtn.disabled = true;
     if (statusEl) {
-        statusEl.textContent = 'Checking for bet transaction...';
+        statusEl.textContent = 'Processing bet...';
         statusEl.className = 'bet-status pending';
     }
     
     try {
-        // Check for recent transaction from user's wallet to dev wallet
-        const transaction = await findBetTransaction();
+        // TEST MODE: Simulate a bet without requiring actual transaction
+        // Generate a fake transaction signature for testing
+        const testTransaction = {
+            signature: 'test_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            amount: BET_AMOUNT,
+            timestamp: Math.floor(Date.now() / 1000)
+        };
         
-        if (!transaction) {
-            if (statusEl) {
-                statusEl.textContent = '❌ No bet found. Please send exactly 0.1 SOL to the address above first.';
-                statusEl.className = 'bet-status error';
-            }
-            if (verifyBtn) verifyBtn.disabled = false;
-            return;
-        }
-        
-        // Verify amount is exactly 0.1 SOL
-        const betAmount = transaction.amount;
-        if (Math.abs(betAmount - BET_AMOUNT) > 0.001) {
-            if (statusEl) {
-                statusEl.textContent = `❌ Invalid bet amount: ${betAmount.toFixed(4)} SOL. Must be exactly 0.1 SOL.`;
-                statusEl.className = 'bet-status error';
-            }
-            if (verifyBtn) verifyBtn.disabled = false;
-            return;
-        }
-        
-        // Check if this transaction was already used
-        const { data: existingBet } = await supabaseClient
-            .from('casino_bets')
-            .select('*')
-            .eq('transaction_signature', transaction.signature)
-            .single();
-        
-        if (existingBet) {
-            if (statusEl) {
-                statusEl.textContent = '❌ This bet has already been processed.';
-                statusEl.className = 'bet-status error';
-            }
-            if (verifyBtn) verifyBtn.disabled = false;
-            return;
-        }
-        
-        // Process the bet
-        await processBet(transaction);
+        // Process the bet (test mode)
+        await processBet(testTransaction);
         
     } catch (error) {
-        console.error('Error verifying bet:', error);
+        console.error('Error processing bet:', error);
         if (statusEl) {
-            statusEl.textContent = '❌ Error verifying bet. Please try again.';
+            statusEl.textContent = '❌ Error processing bet. Please try again.';
             statusEl.className = 'bet-status error';
         }
         if (verifyBtn) verifyBtn.disabled = false;
@@ -2949,12 +2918,12 @@ async function processBet(transaction) {
     const verifyBtn = document.getElementById('verifyBetBtn');
     
     try {
-        // Calculate house fee
-        const houseFee = BET_AMOUNT * (HOUSE_FEE_PERCENT / 100);
-        const netBetAmount = BET_AMOUNT - houseFee;
+        // No house fee for now - testing mode
+        const houseFee = 0;
+        const netBetAmount = BET_AMOUNT;
         
-        // Determine win/loss (45% chance to win - house edge)
-        const isWin = Math.random() < WIN_PROBABILITY;
+        // Determine win/loss (50% chance to win - fair odds for testing)
+        const isWin = Math.random() < 0.5;
         const winAmount = isWin ? netBetAmount * 2 : 0; // 2x payout if win
         const payoutAmount = isWin ? winAmount : 0;
         
@@ -2983,7 +2952,7 @@ async function processBet(transaction) {
         showCasinoResult(isWin, payoutAmount, houseFee);
         
         if (statusEl) {
-            statusEl.textContent = `✅ Bet processed! ${isWin ? 'WINNER!' : 'Better luck next time!'}`;
+            statusEl.textContent = `✅ Bet processed! ${isWin ? 'WINNER! 🎉' : 'Better luck next time!'}`;
             statusEl.className = 'bet-status success';
         }
         
@@ -3021,14 +2990,13 @@ function showCasinoResult(isWin, payoutAmount, houseFee) {
     if (payoutInfo) {
         let html = '<div style="text-align: left; line-height: 1.8;">';
         html += `<div>Bet Amount: <strong>${BET_AMOUNT} SOL</strong></div>`;
-        html += `<div>House Fee (5%): <strong>${houseFee.toFixed(4)} SOL</strong></div>`;
-        html += `<div>Net Bet: <strong>${(BET_AMOUNT - houseFee).toFixed(4)} SOL</strong></div>`;
         if (isWin) {
             html += `<div style="color: #4ade80; margin-top: 10px;">Payout: <strong>${payoutAmount.toFixed(4)} SOL</strong></div>`;
             html += `<div style="color: #4ade80;">Profit: <strong>${(payoutAmount - BET_AMOUNT).toFixed(4)} SOL</strong></div>`;
         } else {
             html += `<div style="color: #ef4444; margin-top: 10px;">Loss: <strong>${BET_AMOUNT} SOL</strong></div>`;
         }
+        html += '<div style="margin-top: 10px; font-size: 12px; opacity: 0.7;">⚠️ TEST MODE - No real SOL required</div>';
         html += '</div>';
         payoutInfo.innerHTML = html;
     }

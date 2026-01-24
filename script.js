@@ -3100,9 +3100,9 @@ async function processBet(transaction) {
         // Wait for animation (2 seconds)
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // No house fee for now - testing mode
-        const houseFee = 0;
-        const netBetAmount = BET_AMOUNT;
+        // Calculate house fee (5% but not shown to user)
+        const houseFee = BET_AMOUNT * (HOUSE_FEE_PERCENT / 100);
+        const netBetAmount = BET_AMOUNT - houseFee;
         
         // Determine win/loss (35% chance to win - 65% house edge)
         const isWin = Math.random() < WIN_PROBABILITY;

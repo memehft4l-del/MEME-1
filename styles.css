@@ -905,6 +905,85 @@ body > * {
     transform: translateY(0);
 }
 
+/* Casino Rules Styles */
+.casino-rules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rule-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.rule-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.rule-content {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.rule-content strong {
+    color: #ffd93d;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.leaderboard-list.compact {
+    max-height: 200px;
+    font-size: 11px;
+    overflow-y: auto;
+}
+
+.leaderboard-list.compact .leaderboard-item {
+    padding: 6px 10px;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.leaderboard-section.compact .panel-section {
+    padding: 12px;
+}
+
+.leaderboard-section.compact h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.payout-stats.compact {
+    padding: 10px;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.payout-stats.compact .payout-stat {
+    min-width: 120px;
+    padding: 8px;
+}
+
+.payout-stats.compact .payout-label {
+    font-size: 10px;
+}
+
+.payout-stats.compact .payout-value {
+    font-size: 18px;
+}
+
 .verify-bet-btn {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     border: none;

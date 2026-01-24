@@ -1101,10 +1101,18 @@ function hideWelcomeModal() {
 
 // Initialize Supabase client
 function initSupabase() {
-    // Check if supabase library is loaded
+    // Wait for supabase library to load
     if (typeof supabase === 'undefined') {
-        console.warn('Supabase library not loaded. Site will work without Supabase.');
-        setDefaultLinks();
+        console.warn('Supabase library not loaded yet, retrying...');
+        // Retry after a short delay
+        setTimeout(() => {
+            if (typeof supabase !== 'undefined') {
+                initSupabase();
+            } else {
+                console.warn('Supabase library not loaded. Site will work without Supabase.');
+                setDefaultLinks();
+            }
+        }, 500);
         return;
     }
     
@@ -1113,13 +1121,40 @@ function initSupabase() {
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             console.log('✅ Supabase initialized');
+            console.log('Supabase URL:', SUPABASE_URL);
+            console.log('Supabase Key:', SUPABASE_ANON_KEY.substring(0, 20) + '...');
+            
+            // Test connection
+            testSupabaseConnection();
         } catch (error) {
             console.error('❌ Error initializing Supabase:', error);
             setDefaultLinks();
         }
     } else {
         console.warn('Supabase credentials not configured. Using default links.');
+        console.warn('URL:', SUPABASE_URL);
+        console.warn('Key:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : 'missing');
         setDefaultLinks();
+    }
+}
+
+// Test Supabase connection
+async function testSupabaseConnection() {
+    if (!supabaseClient) return;
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('config')
+            .select('id')
+            .limit(1);
+        
+        if (error) {
+            console.error('❌ Supabase connection test failed:', error);
+        } else {
+            console.log('✅ Supabase connection test successful');
+        }
+    } catch (error) {
+        console.error('❌ Supabase connection test error:', error);
     }
 }
 
@@ -1883,11 +1918,34 @@ async function loadLeaderboard() {
     
     leaderboardList.innerHTML = '<p class="loading-text">Loading leaderboard...</p>';
     
-    try {
-        if (!supabaseClient) {
-            leaderboardList.innerHTML = '<p class="error-text">Supabase not connected</p>';
+    // Wait for Supabase to initialize if not ready
+    if (!supabaseClient) {
+        // Check if Supabase library is available
+        if (typeof supabase === 'undefined') {
+            leaderboardList.innerHTML = '<p class="error-text">Supabase library loading...</p>';
+            // Retry after a delay
+            setTimeout(loadLeaderboard, 1000);
             return;
         }
+        
+        // Try to initialize Supabase if credentials are available
+        if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL' && 
+            SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase initialized for leaderboard');
+            } catch (error) {
+                console.error('❌ Error initializing Supabase:', error);
+                leaderboardList.innerHTML = '<p class="error-text">Failed to connect to database</p>';
+                return;
+            }
+        } else {
+            leaderboardList.innerHTML = '<p class="error-text">Database not configured</p>';
+            return;
+        }
+    }
+    
+    try {
         
         // Get all winners - unified leaderboard
         const { data, error } = await supabaseClient

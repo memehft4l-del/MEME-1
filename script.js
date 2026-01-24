@@ -23,6 +23,8 @@ let easterEggsActive = {
 
 // API Configuration
 const HELIUS_API_URL = 'https://mainnet.helius-rpc.com/?api-key=5b8196dc-7a4b-43fa-80f0-8f285ccf318b';
+const PAYOUT_WALLET = '7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN';
+let totalSolPaidOut = 0;
 
 // Supabase Configuration
 // These can be overridden by environment variables in Vercel
@@ -112,6 +114,21 @@ function initializeApp() {
             console.error('❌ Leaderboard initialization failed:', error);
         }
     }, 1500);
+    
+    // Initialize payout tracking
+    setTimeout(() => {
+        try {
+            loadPayoutStats();
+            console.log('✅ Payout stats initialized');
+        } catch (error) {
+            console.error('❌ Payout stats initialization failed:', error);
+        }
+    }, 2000);
+    
+    // Update payout stats every 60 seconds
+    setInterval(() => {
+        loadPayoutStats();
+    }, 60000);
     
     // Load config from Supabase (async), then start market cap updates
     loadConfigFromSupabase().then(() => {
@@ -2077,6 +2094,152 @@ async function loadLeaderboard() {
     } catch (error) {
         console.error('Error loading leaderboard:', error);
         leaderboardList.innerHTML = '<p class="error-text">Error loading leaderboard</p>';
+    }
+}
+
+// Payout Stats Logic
+async function loadPayoutStats() {
+    try {
+        // Get total winners count from Supabase
+        let totalWinners = 0;
+        if (supabaseClient) {
+            const { count } = await supabaseClient
+                .from('game_winners')
+                .select('*', { count: 'exact', head: true });
+            totalWinners = count || 0;
+        }
+        
+        const winnersEl = document.getElementById('totalWinners');
+        if (winnersEl) {
+            winnersEl.textContent = totalWinners.toLocaleString();
+        }
+        
+        // Get SOL paid out from wallet transactions
+        await calculateSolPaidOut();
+        
+    } catch (error) {
+        console.error('Error loading payout stats:', error);
+    }
+}
+
+async function calculateSolPaidOut() {
+    try {
+        // Use Helius API to get transaction history
+        const response = await fetch(HELIUS_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getSignaturesForAddress',
+                params: [
+                    PAYOUT_WALLET,
+                    {
+                        limit: 1000, // Get last 1000 transactions
+                        commitment: 'confirmed'
+                    }
+                ]
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error || !data.result) {
+            console.error('Error fetching transactions:', data.error);
+            document.getElementById('totalSolPaid').textContent = 'Error loading';
+            return;
+        }
+        
+        // Get transaction details for each signature
+        const signatures = data.result.slice(0, 100); // Check first 100 transactions
+        let totalPaid = 0;
+        
+        // Process transactions in batches
+        for (let i = 0; i < signatures.length; i += 10) {
+            const batch = signatures.slice(i, i + 10);
+            const batchPromises = batch.map(sig => getTransactionDetails(sig.signature));
+            const batchResults = await Promise.all(batchPromises);
+            
+            batchResults.forEach(amount => {
+                if (amount > 0) {
+                    totalPaid += amount;
+                }
+            });
+            
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        totalSolPaidOut = totalPaid;
+        const paidEl = document.getElementById('totalSolPaid');
+        if (paidEl) {
+            paidEl.textContent = totalPaid.toFixed(4) + ' SOL';
+        }
+        
+        console.log('Total SOL paid out:', totalPaid);
+        
+    } catch (error) {
+        console.error('Error calculating SOL paid out:', error);
+        document.getElementById('totalSolPaid').textContent = 'Error loading';
+    }
+}
+
+async function getTransactionDetails(signature) {
+    try {
+        const response = await fetch(HELIUS_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTransaction',
+                params: [
+                    signature,
+                    {
+                        encoding: 'jsonParsed',
+                        maxSupportedTransactionVersion: 0
+                    }
+                ]
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error || !data.result) {
+            return 0;
+        }
+        
+        const transaction = data.result;
+        
+        // Check if this transaction sent SOL from our payout wallet
+        if (transaction.transaction && transaction.transaction.message) {
+            const accountKeys = transaction.transaction.message.accountKeys || [];
+            const preBalances = transaction.meta?.preBalances || [];
+            const postBalances = transaction.meta?.postBalances || [];
+            
+            // Find our wallet index
+            const walletIndex = accountKeys.findIndex(acc => 
+                (typeof acc === 'string' ? acc : acc.pubkey) === PAYOUT_WALLET
+            );
+            
+            if (walletIndex >= 0 && preBalances[walletIndex] && postBalances[walletIndex]) {
+                const balanceChange = (preBalances[walletIndex] - postBalances[walletIndex]) / 1e9;
+                
+                // Only count outgoing transactions (positive balance change means we sent SOL)
+                if (balanceChange > 0) {
+                    return balanceChange;
+                }
+            }
+        }
+        
+        return 0;
+    } catch (error) {
+        console.error('Error getting transaction details:', error);
+        return 0;
     }
 }
 

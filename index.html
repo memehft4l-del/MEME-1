@@ -147,10 +147,21 @@
             </div>
         </div>
 
-        <!-- Challenge Game Section -->
-        <div class="challenge-game-section">
+        <!-- Game Selection -->
+        <div class="game-selection-section">
+            <div class="panel-section">
+                <h3>🎮 CHOOSE YOUR CHALLENGE</h3>
+                <div class="game-buttons">
+                    <button id="game1Btn" class="game-select-btn active">Reaction Game</button>
+                    <button id="game2Btn" class="game-select-btn">Memory Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Challenge Game Section (Reaction Game) -->
+        <div class="challenge-game-section" id="reactionGame">
             <div class="panel-section challenge-panel">
-                <h3>🎮 BOBO CHALLENGE - Win SOL Airdrop!</h3>
+                <h3>🎮 BOBO REACTION CHALLENGE - Win SOL Airdrop!</h3>
                 <div class="challenge-content">
                     <div class="wallet-connect-section">
                         <div id="walletStatus" class="wallet-status">
@@ -197,6 +208,59 @@
                                 Claim SOL Airdrop
                             </button>
                             <button id="playAgainBtn" class="play-again-btn">Play Again</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Game Section -->
+        <div class="challenge-game-section" id="memoryGame" style="display: none;">
+            <div class="panel-section challenge-panel">
+                <h3>🧠 BOBO MEMORY CHALLENGE - Win SOL Airdrop!</h3>
+                <div class="challenge-content">
+                    <div class="wallet-connect-section">
+                        <div id="walletStatus2" class="wallet-status">
+                            <p>Enter your Solana wallet address to play</p>
+                            <div class="wallet-input-group">
+                                <input 
+                                    type="text" 
+                                    id="walletAddressInput2" 
+                                    class="wallet-input" 
+                                    placeholder="Enter your Solana wallet address..."
+                                    maxlength="44"
+                                />
+                                <button id="submitWalletBtn2" class="submit-wallet-btn">
+                                    Submit
+                                </button>
+                            </div>
+                            <p class="wallet-hint">Your address will be stored securely in our database</p>
+                        </div>
+                        <div id="walletConnected2" class="wallet-connected" style="display: none;">
+                            <p>Wallet: <span id="walletAddress2"></span></p>
+                        </div>
+                    </div>
+                    
+                        <div id="gameArea2" class="game-area" style="display: none;">
+                        <div class="game-info">
+                            <div class="game-stat-display">
+                                <span>Level: <strong id="gameLevel2">3</strong></span>
+                                <span>Moves: <strong id="gameMoves2">0</strong></span>
+                                <span>Time: <strong id="gameTime2">60</strong>s</span>
+                                <span>Matches: <strong id="gameMatches2">0</strong></span>
+                            </div>
+                            <p class="game-instructions" id="gameInstructions2">
+                                Match pairs of cards! Complete Level 5 to win SOL airdrop!
+                            </p>
+                        </div>
+                        <button id="startGameBtn2" class="start-game-btn">START GAME</button>
+                        <div id="memoryGrid" class="memory-grid"></div>
+                        <div id="gameResult2" class="game-result" style="display: none;">
+                            <h4 id="resultMessage2"></h4>
+                            <button id="claimAirdropBtn2" class="claim-btn" style="display: none;">
+                                Claim SOL Airdrop
+                            </button>
+                            <button id="playAgainBtn2" class="play-again-btn">Play Again</button>
                         </div>
                     </div>
                 </div>

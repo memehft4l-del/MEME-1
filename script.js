@@ -87,6 +87,22 @@ function initializeApp() {
         console.error('❌ Challenge game initialization failed:', error);
     }
     
+    // Initialize memory game
+    try {
+        initMemoryGame();
+        console.log('✅ Memory game initialized');
+    } catch (error) {
+        console.error('❌ Memory game initialization failed:', error);
+    }
+    
+    // Initialize game selection
+    try {
+        initGameSelection();
+        console.log('✅ Game selection initialized');
+    } catch (error) {
+        console.error('❌ Game selection initialization failed:', error);
+    }
+    
     // Initialize leaderboard (wait a bit for Supabase to be ready)
     setTimeout(() => {
         try {

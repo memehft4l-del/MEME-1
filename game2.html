@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOBO Challenge 2 - Memory Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .wallet-section {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .wallet-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .wallet-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #fff;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .wallet-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .game-area {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            display: none;
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            min-width: 120px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .memory-grid {
+            display: grid;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+
+        .memory-card {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .memory-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.05);
+        }
+
+        .memory-card.flipped {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            border-color: #4ade80;
+        }
+
+        .memory-card.matched {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        .memory-card.wrong {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            border: none;
+            color: #fff;
+            padding: 20px 50px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(74, 222, 128, 0.4);
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(74, 222, 128, 0.6);
+        }
+
+        .game-result {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .claim-btn {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            border: none;
+            color: #fff;
+            padding: 15px 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .claim-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(74, 222, 128, 0.5);
+        }
+
+        .play-again-btn {
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .play-again-btn:hover {
+            background: rgba(102, 126, 234, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                padding: 10px;
+            }
+
+            .memory-grid {
+                gap: 8px;
+            }
+
+            .memory-card {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🧠 BOBO MEMORY CHALLENGE</h1>
+            <p>Match pairs of cards! Complete Level 5 to win SOL airdrop!</p>
+        </div>
+
+        <div class="wallet-section">
+            <div id="walletStatus">
+                <p>Enter your Solana wallet address to play</p>
+                <div class="wallet-input-group">
+                    <input 
+                        type="text" 
+                        id="walletAddressInput" 
+                        class="wallet-input" 
+                        placeholder="Enter your Solana wallet address..."
+                        maxlength="44"
+                    />
+                    <button id="submitWalletBtn" class="submit-btn">Submit</button>
+                </div>
+            </div>
+            <div id="walletConnected" style="display: none;">
+                <p>Wallet: <span id="walletAddress"></span></p>
+            </div>
+        </div>
+
+        <div class="game-area" id="gameArea">
+            <div class="game-stats">
+                <div class="stat-box">
+                    <div class="stat-label">Level</div>
+                    <div class="stat-value" id="gameLevel">3</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Moves</div>
+                    <div class="stat-value" id="gameMoves">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Time</div>
+                    <div class="stat-value" id="gameTime">60</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Matches</div>
+                    <div class="stat-value" id="gameMatches">0</div>
+                </div>
+            </div>
+
+            <button id="startGameBtn" class="start-btn">START GAME</button>
+            <div id="memoryGrid" class="memory-grid"></div>
+
+            <div id="gameResult" class="game-result">
+                <h2 id="resultMessage"></h2>
+                <button id="claimAirdropBtn" class="claim-btn" style="display: none;">Claim SOL Airdrop</button>
+                <button id="playAgainBtn" class="play-again-btn">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://cwihyzlbsbbpchkheito.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Y_MINoKzOLp1DBG23X0HZg_NR9gXzSk';
+        let supabaseClient = null;
+
+        // Game State
+        let walletAddress = null;
+        let gameState = {
+            level: 3,
+            moves: 0,
+            timeLeft: 60,
+            matches: 0,
+            gameActive: false,
+            gameTimer: null,
+            cards: [],
+            flippedCards: [],
+            matchedPairs: 0,
+            totalPairs: 0
+        };
+
+        // Initialize
+        function init() {
+            if (typeof supabase !== 'undefined') {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase initialized');
+            }
+
+            document.getElementById('submitWalletBtn').addEventListener('click', submitWallet);
+            document.getElementById('walletAddressInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitWallet();
+            });
+            document.getElementById('startGameBtn').addEventListener('click', startGame);
+            document.getElementById('playAgainBtn').addEventListener('click', () => {
+                document.getElementById('gameResult').style.display = 'none';
+                document.getElementById('startGameBtn').style.display = 'block';
+                document.getElementById('memoryGrid').innerHTML = '';
+            });
+            document.getElementById('claimAirdropBtn').addEventListener('click', claimAirdrop);
+        }
+
+        function isValidSolanaAddress(address) {
+            const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+            return base58Regex.test(address);
+        }
+
+        async function submitWallet() {
+            const input = document.getElementById('walletAddressInput');
+            const address = input.value.trim();
+
+            if (!address || !isValidSolanaAddress(address)) {
+                alert('Please enter a valid Solana wallet address!');
+                return;
+            }
+
+            walletAddress = address;
+
+            if (supabaseClient) {
+                try {
+                    await supabaseClient.from('game_participants').insert({
+                        wallet_address: walletAddress,
+                        created_at: new Date().toISOString()
+                    });
+                } catch (e) {
+                    console.error('Error storing wallet:', e);
+                }
+            }
+
+            document.getElementById('walletStatus').style.display = 'none';
+            document.getElementById('walletConnected').style.display = 'block';
+            document.getElementById('walletAddress').textContent = 
+                address.substring(0, 8) + '...' + address.substring(address.length - 8);
+            document.getElementById('gameArea').style.display = 'block';
+        }
+
+        function startGame() {
+            if (!walletAddress) {
+                alert('Please enter your wallet address first!');
+                return;
+            }
+
+            gameState.level = 3;
+            gameState.moves = 0;
+            gameState.matches = 0;
+            gameState.matchedPairs = 0;
+            gameState.flippedCards = [];
+            gameState.gameActive = true;
+
+            // Level 3: 6 pairs, Level 4: 8 pairs, Level 5: 12 pairs
+            gameState.totalPairs = gameState.level === 3 ? 6 : gameState.level === 4 ? 8 : 12;
+            gameState.timeLeft = gameState.level === 5 ? 45 : gameState.level === 4 ? 50 : 60;
+
+            document.getElementById('startGameBtn').style.display = 'none';
+            document.getElementById('gameResult').style.display = 'none';
+            createMemoryGrid();
+            startTimer();
+            updateDisplay();
+        }
+
+        function createMemoryGrid() {
+            const grid = document.getElementById('memoryGrid');
+            grid.innerHTML = '';
+            
+            const cols = gameState.level === 5 ? 6 : gameState.level === 4 ? 4 : 3;
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            
+            const symbols = ['🥒', '🍌', '🍎', '🍊', '🍇', '🍓', '🍑', '🥝', '🍉', '🍐', '🥭', '🍋'];
+            const selectedSymbols = symbols.slice(0, gameState.totalPairs);
+            const cardValues = [...selectedSymbols, ...selectedSymbols].sort(() => Math.random() - 0.5);
+
+            cardValues.forEach((value, index) => {
+                const card = document.createElement('div');
+                card.className = 'memory-card';
+                card.dataset.index = index;
+                card.dataset.value = value;
+                card.textContent = '?';
+                card.addEventListener('click', () => flipCard(card));
+                grid.appendChild(card);
+            });
+
+            gameState.cards = Array.from(grid.children);
+        }
+
+        function flipCard(card) {
+            if (!gameState.gameActive) return;
+            if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+            if (gameState.flippedCards.length >= 2) return;
+
+            card.classList.add('flipped');
+            card.textContent = card.dataset.value;
+            gameState.flippedCards.push(card);
+
+            if (gameState.flippedCards.length === 2) {
+                gameState.moves++;
+                updateDisplay();
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = gameState.flippedCards;
+            
+            if (card1.dataset.value === card2.dataset.value) {
+                // Match!
+                setTimeout(() => {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    gameState.matchedPairs++;
+                    gameState.matches = gameState.matchedPairs;
+                    gameState.flippedCards = [];
+                    updateDisplay();
+
+                    if (gameState.matchedPairs >= gameState.totalPairs) {
+                        completeLevel();
+                    }
+                }, 500);
+            } else {
+                // No match
+                setTimeout(() => {
+                    card1.classList.add('wrong');
+                    card2.classList.add('wrong');
+                    setTimeout(() => {
+                        card1.classList.remove('flipped', 'wrong');
+                        card2.classList.remove('flipped', 'wrong');
+                        card1.textContent = '?';
+                        card2.textContent = '?';
+                        gameState.flippedCards = [];
+                    }, 1000);
+                }, 500);
+            }
+        }
+
+        function completeLevel() {
+            if (gameState.level >= 5) {
+                gameState.gameActive = false;
+                stopTimer();
+                showResult(true);
+            } else {
+                gameState.level++;
+                gameState.matchedPairs = 0;
+                gameState.flippedCards = [];
+                gameState.totalPairs = gameState.level === 4 ? 8 : 12;
+                gameState.timeLeft = gameState.level === 5 ? 45 : 50;
+                
+                setTimeout(() => {
+                    createMemoryGrid();
+                    updateDisplay();
+                }, 1500);
+            }
+        }
+
+        function startTimer() {
+            if (gameState.gameTimer) clearInterval(gameState.gameTimer);
+            gameState.gameTimer = setInterval(() => {
+                gameState.timeLeft--;
+                updateDisplay();
+                if (gameState.timeLeft <= 0) {
+                    gameState.gameActive = false;
+                    stopTimer();
+                    showResult(false);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (gameState.gameTimer) {
+                clearInterval(gameState.gameTimer);
+                gameState.gameTimer = null;
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('gameLevel').textContent = gameState.level;
+            document.getElementById('gameMoves').textContent = gameState.moves;
+            document.getElementById('gameTime').textContent = gameState.timeLeft;
+            document.getElementById('gameMatches').textContent = gameState.matches + '/' + gameState.totalPairs;
+        }
+
+        function showResult(won) {
+            const resultDiv = document.getElementById('gameResult');
+            const messageEl = document.getElementById('resultMessage');
+            const claimBtn = document.getElementById('claimAirdropBtn');
+
+            resultDiv.style.display = 'block';
+            if (won) {
+                messageEl.textContent = '🎉 Congratulations! You completed Level 5! 🎉';
+                messageEl.style.color = '#4ade80';
+                claimBtn.style.display = 'block';
+            } else {
+                messageEl.textContent = '⏰ Time\'s up! Try again!';
+                messageEl.style.color = '#ef4444';
+                claimBtn.style.display = 'none';
+            }
+        }
+
+        async function claimAirdrop() {
+            if (!walletAddress || gameState.level < 5) {
+                alert('You must complete level 5 to claim!');
+                return;
+            }
+
+            const claimBtn = document.getElementById('claimAirdropBtn');
+            claimBtn.disabled = true;
+            claimBtn.textContent = 'Processing...';
+
+            try {
+                if (supabaseClient) {
+                    const { error } = await supabaseClient.from('game_winners').insert({
+                        wallet_address: walletAddress,
+                        level: gameState.level,
+                        score: gameState.moves,
+                        claimed_at: new Date().toISOString()
+                    });
+
+                    if (error) {
+                        throw error;
+                    }
+                }
+
+                alert('✅ Success! Your wallet address has been recorded. SOL airdrop will be sent manually!');
+                claimBtn.style.display = 'none';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error claiming airdrop. Please try again.');
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim SOL Airdrop';
+            }
+        }
+
+        // Initialize on load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
+

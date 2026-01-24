@@ -161,6 +161,9 @@ CREATE POLICY "Allow public update" ON casino_bets
     USING (true)
     WITH CHECK (true);
 
+-- Drop trigger if exists (to avoid conflicts when re-running)
+DROP TRIGGER IF EXISTS update_casino_bets_updated_at ON casino_bets;
+
 -- Create trigger to update updated_at on casino_bets
 CREATE TRIGGER update_casino_bets_updated_at BEFORE UPDATE ON casino_bets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

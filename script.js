@@ -2794,7 +2794,7 @@ async function loadCasinoStats() {
     try {
         const { data, error } = await supabaseClient
             .from('casino_bets')
-            .select('total_wagered, total_won, total_paid_out')
+            .select('*')
             .eq('wallet_address', casinoState.walletAddress)
             .maybeSingle();
         
@@ -2803,10 +2803,12 @@ async function loadCasinoStats() {
         }
         
         if (data) {
-            document.getElementById('totalWagered').textContent = 
-                (parseFloat(data.total_wagered || 0)).toFixed(4) + ' SOL';
-            document.getElementById('totalWon').textContent = 
-                (parseFloat(data.total_paid_out || 0)).toFixed(4) + ' SOL';
+            // Calculate total wagered from bets if column doesn't exist
+            const totalWagered = data.total_wagered ? parseFloat(data.total_wagered) : (data.total_bets || 0) * BET_AMOUNT;
+            const totalWon = data.total_paid_out ? parseFloat(data.total_paid_out) : (data.total_won ? parseFloat(data.total_won) : 0);
+            
+            document.getElementById('totalWagered').textContent = totalWagered.toFixed(4) + ' SOL';
+            document.getElementById('totalWon').textContent = totalWon.toFixed(4) + ' SOL';
         } else {
             document.getElementById('totalWagered').textContent = '0.0000 SOL';
             document.getElementById('totalWon').textContent = '0.0000 SOL';
@@ -3118,36 +3120,71 @@ async function processBet(transaction) {
             coinResult.className = 'coin-result ' + (isWin ? 'win' : 'loss');
         }
         
+        // Store transaction signature to prevent duplicate bets
+        if (!casinoState.processedTransactions) {
+            casinoState.processedTransactions = new Set();
+        }
+        
+        // Check if this transaction was already processed
+        if (casinoState.processedTransactions.has(transaction.signature)) {
+            console.log('⚠️ Transaction already processed:', transaction.signature);
+            if (statusEl) {
+                statusEl.textContent = '❌ This transaction has already been used. Please send a new 0.1 SOL transaction.';
+                statusEl.className = 'bet-status error';
+            }
+            if (verifyBtn) verifyBtn.disabled = false;
+            return;
+        }
+        
+        // Mark transaction as processed
+        casinoState.processedTransactions.add(transaction.signature);
+        
         // Update aggregated stats in Supabase (upsert)
         if (supabaseClient) {
             try {
                 // Use upsert to handle both insert and update
+                // Only include columns that exist in the table
                 const upsertData = {
                     wallet_address: casinoState.walletAddress,
                     total_bets: 1,
-                    total_wagered: BET_AMOUNT.toString(),
                     total_wins: isWin ? 1 : 0,
-                    total_losses: isWin ? 0 : 1,
-                    total_won: winAmount.toString(),
-                    total_paid_out: payoutAmount.toString(),
-                    last_bet_at: new Date().toISOString()
+                    total_losses: isWin ? 0 : 1
                 };
                 
                 // First, try to get existing record to increment values
                 const { data: existing } = await supabaseClient
                     .from('casino_bets')
-                    .select('total_bets, total_wagered, total_wins, total_losses, total_won, total_paid_out')
+                    .select('*')
                     .eq('wallet_address', casinoState.walletAddress)
                     .maybeSingle();
                 
                 if (existing) {
                     // Update existing record with incremented values
                     upsertData.total_bets = (existing.total_bets || 0) + 1;
-                    upsertData.total_wagered = (parseFloat(existing.total_wagered || 0) + BET_AMOUNT).toString();
                     upsertData.total_wins = isWin ? (existing.total_wins || 0) + 1 : (existing.total_wins || 0);
                     upsertData.total_losses = isWin ? (existing.total_losses || 0) : (existing.total_losses || 0) + 1;
-                    upsertData.total_won = (isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0)).toString();
-                    upsertData.total_paid_out = (isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0)).toString();
+                    
+                    // Only add columns if they exist
+                    if (existing.total_wagered !== undefined) {
+                        upsertData.total_wagered = (parseFloat(existing.total_wagered || 0) + BET_AMOUNT).toString();
+                    }
+                    if (existing.total_won !== undefined) {
+                        upsertData.total_won = (isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0)).toString();
+                    }
+                    if (existing.total_paid_out !== undefined) {
+                        upsertData.total_paid_out = (isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0)).toString();
+                    }
+                    if (existing.last_bet_at !== undefined) {
+                        upsertData.last_bet_at = new Date().toISOString();
+                    }
+                } else {
+                    // New record - only add columns that exist
+                    if (existing === null) { // Table exists but no record
+                        upsertData.total_wagered = BET_AMOUNT.toString();
+                        upsertData.total_won = winAmount.toString();
+                        upsertData.total_paid_out = payoutAmount.toString();
+                        upsertData.last_bet_at = new Date().toISOString();
+                    }
                 }
                 
                 // Use upsert (insert with on conflict update)
@@ -3160,10 +3197,25 @@ async function processBet(transaction) {
                 
                 if (upsertError) {
                     console.error('Supabase upsert error:', upsertError);
-                    throw upsertError;
+                    // Try without optional columns
+                    const minimalData = {
+                        wallet_address: casinoState.walletAddress,
+                        total_bets: upsertData.total_bets,
+                        total_wins: upsertData.total_wins,
+                        total_losses: upsertData.total_losses
+                    };
+                    const { error: retryError } = await supabaseClient
+                        .from('casino_bets')
+                        .upsert(minimalData, {
+                            onConflict: 'wallet_address',
+                            ignoreDuplicates: false
+                        });
+                    if (retryError) {
+                        console.error('Retry also failed:', retryError);
+                    }
+                } else {
+                    console.log('✅ Bet saved to Supabase successfully');
                 }
-                
-                console.log('✅ Bet saved to Supabase successfully');
             } catch (dbError) {
                 console.error('Database error:', dbError);
                 // Don't throw - allow the game to continue even if DB save fails

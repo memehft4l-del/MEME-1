@@ -590,6 +590,25 @@ body > * {
     min-height: 200px;
     max-height: 600px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.leaderboard-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.leaderboard-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.leaderboard-list::-webkit-scrollbar-thumb {
+    background: rgba(74, 222, 128, 0.5);
+    border-radius: 3px;
+}
+
+.leaderboard-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 222, 128, 0.7);
 }
 
 .leaderboard-header {
@@ -861,6 +880,10 @@ body > * {
     position: relative;
     overflow: hidden;
     border: 2px solid rgba(255, 255, 255, 0.2);
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .target-button {
@@ -874,6 +897,8 @@ body > * {
     box-shadow: 0 0 20px rgba(74, 222, 128, 0.8);
     transition: transform 0.1s ease;
     border: 3px solid #fff;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .target-button:hover {
@@ -1165,6 +1190,122 @@ body > * {
     .stat-value-small {
         font-size: 11px;
     }
+    
+    /* Leaderboard Mobile */
+    .leaderboard-section {
+        margin: 20px 0;
+        padding: 0 10px;
+    }
+    
+    .leaderboard-header {
+        grid-template-columns: 50px 1fr 80px 80px;
+        gap: 8px;
+        padding: 12px 10px;
+        font-size: 11px;
+    }
+    
+    .leaderboard-item {
+        grid-template-columns: 50px 1fr 80px 80px;
+        gap: 8px;
+        padding: 12px 10px;
+    }
+    
+    .rank-col {
+        font-size: 14px;
+    }
+    
+    .wallet-col {
+        font-size: 11px;
+        word-break: break-all;
+    }
+    
+    .level-col {
+        font-size: 12px;
+    }
+    
+    .score-col {
+        font-size: 12px;
+    }
+    
+    .leaderboard-list {
+        max-height: 500px;
+    }
+    
+    /* Game Mobile */
+    .challenge-game-section {
+        margin: 20px 0;
+        padding: 0 10px;
+    }
+    
+    .wallet-input-group {
+        flex-direction: column;
+        max-width: 100%;
+    }
+    
+    .wallet-input {
+        width: 100%;
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+    
+    .submit-wallet-btn {
+        width: 100%;
+        padding: 12px;
+    }
+    
+    .game-stat-display {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .game-stat-display span {
+        font-size: 14px;
+    }
+    
+    .game-stat-display strong {
+        font-size: 16px;
+    }
+    
+    .game-instructions {
+        font-size: 12px;
+        text-align: center;
+        padding: 0 10px;
+    }
+    
+    .start-game-btn {
+        padding: 15px 30px;
+        font-size: 18px;
+        letter-spacing: 1px;
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .game-play-area {
+        height: 400px;
+        min-height: 400px;
+    }
+    
+    .target-button {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .game-result {
+        padding: 20px 15px;
+    }
+    
+    .game-result h4 {
+        font-size: 20px;
+    }
+    
+    .claim-btn,
+    .play-again-btn {
+        width: 100%;
+        max-width: 250px;
+        padding: 12px 20px;
+        font-size: 14px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1210,6 +1351,61 @@ body > * {
     
     .modal-content p {
         font-size: 14px;
+    }
+    
+    /* Leaderboard Small Mobile */
+    .leaderboard-header {
+        grid-template-columns: 40px 1fr 70px 70px;
+        gap: 6px;
+        padding: 10px 8px;
+        font-size: 10px;
+    }
+    
+    .leaderboard-item {
+        grid-template-columns: 40px 1fr 70px 70px;
+        gap: 6px;
+        padding: 10px 8px;
+    }
+    
+    .rank-col {
+        font-size: 12px;
+    }
+    
+    .wallet-col {
+        font-size: 10px;
+    }
+    
+    .level-col,
+    .score-col {
+        font-size: 11px;
+    }
+    
+    /* Game Small Mobile */
+    .game-play-area {
+        height: 350px;
+        min-height: 350px;
+    }
+    
+    .target-button {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .start-game-btn {
+        font-size: 16px;
+        padding: 12px 20px;
+    }
+    
+    .game-stat-display span {
+        font-size: 12px;
+    }
+    
+    .game-stat-display strong {
+        font-size: 14px;
+    }
+    
+    .game-instructions {
+        font-size: 11px;
     }
 }
 

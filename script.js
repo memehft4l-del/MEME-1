@@ -1609,12 +1609,18 @@ function spawnTarget() {
     
     if (!targetButton || !playArea) return;
     
-    // Random position
-    const maxX = playArea.clientWidth - 80;
-    const maxY = playArea.clientHeight - 80;
-    const x = Math.random() * maxX;
-    const y = Math.random() * maxY;
+    // Get actual dimensions (account for mobile)
+    const playAreaRect = playArea.getBoundingClientRect();
+    const buttonSize = window.innerWidth <= 480 ? 60 : window.innerWidth <= 768 ? 70 : 80;
+    const maxX = playAreaRect.width - buttonSize;
+    const maxY = playAreaRect.height - buttonSize;
     
+    // Ensure target is within bounds
+    const x = Math.max(10, Math.min(maxX - 10, Math.random() * maxX));
+    const y = Math.max(10, Math.min(maxY - 10, Math.random() * maxY));
+    
+    targetButton.style.width = buttonSize + 'px';
+    targetButton.style.height = buttonSize + 'px';
     targetButton.style.left = x + 'px';
     targetButton.style.top = y + 'px';
     targetButton.style.display = 'block';

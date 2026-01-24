@@ -2762,25 +2762,23 @@ async function loadCasinoStats() {
     try {
         const { data } = await supabaseClient
             .from('casino_bets')
-            .select('bet_amount, win_amount, payout_amount')
-            .eq('wallet_address', casinoState.walletAddress);
+            .select('total_wagered, total_won, total_paid_out')
+            .eq('wallet_address', casinoState.walletAddress)
+            .single();
         
         if (data) {
-            let totalWagered = 0;
-            let totalWon = 0;
-            
-            data.forEach(bet => {
-                totalWagered += parseFloat(bet.bet_amount || 0);
-                if (bet.win_amount > 0) {
-                    totalWon += parseFloat(bet.payout_amount || 0);
-                }
-            });
-            
-            document.getElementById('totalWagered').textContent = totalWagered.toFixed(4) + ' SOL';
-            document.getElementById('totalWon').textContent = totalWon.toFixed(4) + ' SOL';
+            document.getElementById('totalWagered').textContent = 
+                (parseFloat(data.total_wagered || 0)).toFixed(4) + ' SOL';
+            document.getElementById('totalWon').textContent = 
+                (parseFloat(data.total_paid_out || 0)).toFixed(4) + ' SOL';
+        } else {
+            document.getElementById('totalWagered').textContent = '0.0000 SOL';
+            document.getElementById('totalWon').textContent = '0.0000 SOL';
         }
     } catch (error) {
         console.error('Error loading casino stats:', error);
+        document.getElementById('totalWagered').textContent = '0.0000 SOL';
+        document.getElementById('totalWon').textContent = '0.0000 SOL';
     }
 }
 
@@ -2960,25 +2958,51 @@ async function processBet(transaction) {
             coinResult.className = 'coin-result ' + (isWin ? 'win' : 'loss');
         }
         
-        // Store bet in Supabase
-        const betData = {
-            wallet_address: casinoState.walletAddress,
-            bet_amount: BET_AMOUNT,
-            bet_type: 'coin_flip',
-            game_result: isWin ? 'win' : 'loss',
-            win_amount: winAmount,
-            payout_amount: payoutAmount,
-            house_fee: houseFee,
-            transaction_signature: transaction.signature,
-            status: 'confirmed'
-        };
-        
+        // Update aggregated stats in Supabase (upsert)
         if (supabaseClient) {
-            const { error } = await supabaseClient
+            // First, try to get existing record
+            const { data: existing } = await supabaseClient
                 .from('casino_bets')
-                .insert(betData);
+                .select('*')
+                .eq('wallet_address', casinoState.walletAddress)
+                .single();
             
-            if (error) throw error;
+            if (existing) {
+                // Update existing record
+                const { error } = await supabaseClient
+                    .from('casino_bets')
+                    .update({
+                        total_bets: (existing.total_bets || 0) + 1,
+                        total_wagered: parseFloat(existing.total_wagered || 0) + BET_AMOUNT,
+                        total_wins: isWin ? (existing.total_wins || 0) + 1 : (existing.total_wins || 0),
+                        total_losses: isWin ? (existing.total_losses || 0) : (existing.total_losses || 0) + 1,
+                        total_won: isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0),
+                        total_paid_out: isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0),
+                        house_fee_collected: parseFloat(existing.house_fee_collected || 0) + houseFee,
+                        last_bet_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('wallet_address', casinoState.walletAddress);
+                
+                if (error) throw error;
+            } else {
+                // Insert new record
+                const { error } = await supabaseClient
+                    .from('casino_bets')
+                    .insert({
+                        wallet_address: casinoState.walletAddress,
+                        total_bets: 1,
+                        total_wagered: BET_AMOUNT,
+                        total_wins: isWin ? 1 : 0,
+                        total_losses: isWin ? 0 : 1,
+                        total_won: winAmount,
+                        total_paid_out: payoutAmount,
+                        house_fee_collected: houseFee,
+                        last_bet_at: new Date().toISOString()
+                    });
+                
+                if (error) throw error;
+            }
         }
         
         // Show result

@@ -122,19 +122,17 @@ FROM game_winners
 GROUP BY wallet_address
 ORDER BY highest_level DESC, best_score DESC, last_claimed ASC;
 
--- Create casino_bets table to track all casino bets
+-- Create casino_bets table to track aggregated casino stats per wallet
 CREATE TABLE IF NOT EXISTS casino_bets (
-    id SERIAL PRIMARY KEY,
-    wallet_address TEXT NOT NULL,
-    bet_amount NUMERIC(20, 9) NOT NULL,
-    bet_type TEXT NOT NULL,
-    game_result TEXT NOT NULL,
-    win_amount NUMERIC(20, 9) DEFAULT 0,
-    payout_amount NUMERIC(20, 9) DEFAULT 0,
-    house_fee NUMERIC(20, 9) DEFAULT 0,
-    transaction_signature TEXT,
-    payout_signature TEXT,
-    status TEXT DEFAULT 'pending', -- pending, confirmed, paid, failed
+    wallet_address TEXT PRIMARY KEY,
+    total_bets INTEGER DEFAULT 0,
+    total_wagered NUMERIC(20, 9) DEFAULT 0,
+    total_wins INTEGER DEFAULT 0,
+    total_losses INTEGER DEFAULT 0,
+    total_won NUMERIC(20, 9) DEFAULT 0,
+    total_paid_out NUMERIC(20, 9) DEFAULT 0,
+    house_fee_collected NUMERIC(20, 9) DEFAULT 0,
+    last_bet_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

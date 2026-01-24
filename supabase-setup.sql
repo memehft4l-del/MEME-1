@@ -99,3 +99,15 @@ CREATE POLICY "Allow public read" ON game_winners
     FOR SELECT
     USING (true);
 
+-- Create view for leaderboard (shows all participants with their highest level)
+CREATE OR REPLACE VIEW leaderboard_view AS
+SELECT 
+    wallet_address,
+    MAX(level) as highest_level,
+    MAX(score) as best_score,
+    COUNT(*) as total_wins,
+    MAX(claimed_at) as last_claimed
+FROM game_winners
+GROUP BY wallet_address
+ORDER BY highest_level DESC, best_score DESC, last_claimed ASC;
+

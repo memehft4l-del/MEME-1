@@ -84,6 +84,14 @@ function initializeApp() {
         console.error('❌ Challenge game initialization failed:', error);
     }
     
+    // Initialize leaderboard
+    try {
+        initLeaderboard();
+        console.log('✅ Leaderboard initialized');
+    } catch (error) {
+        console.error('❌ Leaderboard initialization failed:', error);
+    }
+    
     // Initialize Supabase FIRST to get token address, then start market cap updates
     initSupabase();
     
@@ -1766,12 +1774,131 @@ async function claimAirdrop() {
         alert('✅ Success! Your wallet address has been recorded. SOL airdrop will be sent manually by the dev team!');
         claimBtn.style.display = 'none';
         
+        // Refresh leaderboard
+        if (typeof loadLeaderboard === 'function') {
+            loadLeaderboard();
+        }
+        
     } catch (error) {
         console.error('Airdrop claim error:', error);
         alert('❌ Error claiming airdrop. Please contact support.');
         const claimBtn = document.getElementById('claimAirdropBtn');
         claimBtn.disabled = false;
         claimBtn.textContent = 'Claim SOL Airdrop';
+    }
+}
+
+// Leaderboard Logic
+let currentFilter = 'all';
+
+function initLeaderboard() {
+    // Filter buttons
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.level;
+            loadLeaderboard();
+        });
+    });
+    
+    // Load leaderboard on init
+    loadLeaderboard();
+    
+    // Refresh leaderboard every 30 seconds
+    setInterval(loadLeaderboard, 30000);
+}
+
+async function loadLeaderboard() {
+    const leaderboardList = document.getElementById('leaderboardList');
+    if (!leaderboardList) return;
+    
+    leaderboardList.innerHTML = '<p class="loading-text">Loading leaderboard...</p>';
+    
+    try {
+        if (!supabaseClient) {
+            leaderboardList.innerHTML = '<p class="error-text">Supabase not connected</p>';
+            return;
+        }
+        
+        let query = supabaseClient
+            .from('game_winners')
+            .select('wallet_address, level, score, claimed_at')
+            .order('level', { ascending: false })
+            .order('score', { ascending: false })
+            .order('claimed_at', { ascending: true });
+        
+        // Apply filter
+        if (currentFilter !== 'all') {
+            query = query.eq('level', parseInt(currentFilter));
+        }
+        
+        const { data, error } = await query.limit(100);
+        
+        if (error) {
+            console.error('Error loading leaderboard:', error);
+            leaderboardList.innerHTML = '<p class="error-text">Error loading leaderboard</p>';
+            return;
+        }
+        
+        if (!data || data.length === 0) {
+            leaderboardList.innerHTML = '<p class="no-data-text">No winners yet. Be the first!</p>';
+            return;
+        }
+        
+        // Group by wallet address to get highest level per wallet
+        const walletMap = new Map();
+        data.forEach(entry => {
+            const addr = entry.wallet_address;
+            if (!walletMap.has(addr) || 
+                walletMap.get(addr).level < entry.level ||
+                (walletMap.get(addr).level === entry.level && walletMap.get(addr).score < entry.score)) {
+                walletMap.set(addr, entry);
+            }
+        });
+        
+        // Convert to array and sort
+        const leaderboard = Array.from(walletMap.values())
+            .sort((a, b) => {
+                if (b.level !== a.level) return b.level - a.level;
+                if (b.score !== a.score) return b.score - a.score;
+                return new Date(a.claimed_at) - new Date(b.claimed_at);
+            })
+            .slice(0, 50); // Top 50
+        
+        // Display leaderboard
+        let html = '<div class="leaderboard-header">';
+        html += '<span class="rank-col">Rank</span>';
+        html += '<span class="wallet-col">Wallet</span>';
+        html += '<span class="level-col">Level</span>';
+        html += '<span class="score-col">Score</span>';
+        html += '</div>';
+        
+        leaderboard.forEach((entry, index) => {
+            const rank = index + 1;
+            const walletDisplay = entry.wallet_address.substring(0, 6) + '...' + entry.wallet_address.substring(entry.wallet_address.length - 6);
+            const date = new Date(entry.claimed_at);
+            const dateStr = date.toLocaleDateString();
+            
+            let rankClass = '';
+            if (rank === 1) rankClass = 'rank-gold';
+            else if (rank === 2) rankClass = 'rank-silver';
+            else if (rank === 3) rankClass = 'rank-bronze';
+            
+            html += `<div class="leaderboard-item ${rankClass}">`;
+            html += `<span class="rank-col">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank}</span>`;
+            html += `<span class="wallet-col" title="${entry.wallet_address}">${walletDisplay}</span>`;
+            html += `<span class="level-col">Level ${entry.level}</span>`;
+            html += `<span class="score-col">${entry.score.toLocaleString()}</span>`;
+            html += `</div>`;
+        });
+        
+        leaderboardList.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        leaderboardList.innerHTML = '<p class="error-text">Error loading leaderboard</p>';
     }
 }
 

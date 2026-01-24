@@ -3237,65 +3237,100 @@ async function processBet(transaction) {
                     currentHouseFee
                 });
                 
-                // Build upsert data - use numeric values directly, Supabase will handle conversion
-                // Don't include house_fee_collected if column doesn't exist
+                // Build upsert data - start with only required columns
                 const upsertData = {
                     wallet_address: casinoState.walletAddress,
                     total_bets: currentBets,
                     total_wins: currentWins,
-                    total_losses: currentLosses,
-                    total_wagered: currentWagered,
-                    total_won: currentWon,
-                    total_paid_out: currentPaidOut,
-                    last_bet_at: new Date().toISOString()
+                    total_losses: currentLosses
                 };
                 
-                // Only add house_fee_collected if the column exists (check from existing record)
-                if (existing?.house_fee_collected !== undefined) {
-                    upsertData.house_fee_collected = currentHouseFee;
+                // Try to add optional columns by checking if they exist in the table schema
+                // We'll try adding them and catch errors if they don't exist
+                const optionalColumns = {
+                    total_wagered: currentWagered,
+                    total_won: currentWon,
+                    total_paid_out: currentPaidOut
+                };
+                
+                // Add optional columns one at a time, starting with the most important
+                for (const [key, value] of Object.entries(optionalColumns)) {
+                    upsertData[key] = value;
                 }
                 
                 console.log('Attempting to upsert:', upsertData);
                 
                 // Use upsert - this will insert if new, update if exists
-                const { data: upsertResult, error: upsertError } = await supabaseClient
+                let { data: upsertResult, error: upsertError } = await supabaseClient
                     .from('casino_bets')
                     .upsert(upsertData, {
                         onConflict: 'wallet_address'
                     })
                     .select();
                 
+                // If error mentions a missing column, remove it and retry
+                if (upsertError && upsertError.message) {
+                    const errorMsg = upsertError.message.toLowerCase();
+                    
+                    // Remove problematic columns and retry
+                    if (errorMsg.includes('house_fee_collected')) {
+                        delete upsertData.house_fee_collected;
+                    }
+                    if (errorMsg.includes('last_bet_at')) {
+                        delete upsertData.last_bet_at;
+                    }
+                    if (errorMsg.includes('total_wagered')) {
+                        delete upsertData.total_wagered;
+                    }
+                    if (errorMsg.includes('total_won')) {
+                        delete upsertData.total_won;
+                    }
+                    if (errorMsg.includes('total_paid_out')) {
+                        delete upsertData.total_paid_out;
+                    }
+                    
+                    console.log('Retrying with reduced columns:', upsertData);
+                    
+                    const retryResult = await supabaseClient
+                        .from('casino_bets')
+                        .upsert(upsertData, {
+                            onConflict: 'wallet_address'
+                        })
+                        .select();
+                    
+                    upsertResult = retryResult.data;
+                    upsertError = retryResult.error;
+                }
+                
                 if (upsertError) {
                     console.error('❌ Upsert error:', upsertError);
                     console.error('Error code:', upsertError.code);
                     console.error('Error message:', upsertError.message);
                     
-                    // If error is about house_fee_collected, try without it
-                    if (upsertError.message && upsertError.message.includes('house_fee_collected')) {
-                        console.log('Retrying without house_fee_collected...');
-                        delete upsertData.house_fee_collected;
-                        
-                        const { data: retryResult, error: retryError } = await supabaseClient
-                            .from('casino_bets')
-                            .upsert(upsertData, {
-                                onConflict: 'wallet_address'
-                            })
-                            .select();
-                        
-                        if (retryError) {
-                            console.error('❌ Retry also failed:', retryError);
-                            if (statusEl) {
-                                statusEl.textContent += ' (Stats may not have saved - check console)';
-                            }
-                        } else {
-                            console.log('✅ Bet saved to Supabase successfully (without house_fee_collected)!');
-                            console.log('Saved data:', retryResult);
-                        }
-                    } else {
-                        // Alert user that stats might not be saved
+                    // Try with absolute minimum - just the required fields
+                    const minimalData = {
+                        wallet_address: casinoState.walletAddress,
+                        total_bets: currentBets,
+                        total_wins: currentWins,
+                        total_losses: currentLosses
+                    };
+                    
+                    console.log('Trying absolute minimum:', minimalData);
+                    
+                    const { data: minimalResult, error: minimalError } = await supabaseClient
+                        .from('casino_bets')
+                        .upsert(minimalData, {
+                            onConflict: 'wallet_address'
+                        })
+                        .select();
+                    
+                    if (minimalError) {
+                        console.error('❌ Even minimal upsert failed:', minimalError);
                         if (statusEl) {
                             statusEl.textContent += ' (Stats may not have saved - check console)';
                         }
+                    } else {
+                        console.log('✅ Bet saved with minimal columns:', minimalResult);
                     }
                 } else {
                     console.log('✅ Bet saved to Supabase successfully!');

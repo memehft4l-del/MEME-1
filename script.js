@@ -2080,4 +2080,383 @@ async function loadLeaderboard() {
     }
 }
 
+// Game Selection Logic
+function initGameSelection() {
+    const game1Btn = document.getElementById('game1Btn');
+    const game2Btn = document.getElementById('game2Btn');
+    const reactionGame = document.getElementById('reactionGame');
+    const memoryGame = document.getElementById('memoryGame');
+    
+    if (game1Btn) {
+        game1Btn.addEventListener('click', () => {
+            game1Btn.classList.add('active');
+            if (game2Btn) game2Btn.classList.remove('active');
+            if (reactionGame) reactionGame.style.display = 'block';
+            if (memoryGame) memoryGame.style.display = 'none';
+        });
+    }
+    
+    if (game2Btn) {
+        game2Btn.addEventListener('click', () => {
+            game2Btn.classList.add('active');
+            if (game1Btn) game1Btn.classList.remove('active');
+            if (reactionGame) reactionGame.style.display = 'none';
+            if (memoryGame) memoryGame.style.display = 'block';
+        });
+    }
+}
+
+// Memory Game Logic
+let memoryGameState = {
+    level: 3,
+    moves: 0,
+    timeLeft: 60,
+    matches: 0,
+    gameActive: false,
+    gameTimer: null,
+    cards: [],
+    flippedCards: [],
+    matchedPairs: 0,
+    totalPairs: 0,
+    walletAddress: null
+};
+
+function initMemoryGame() {
+    const walletInput = document.getElementById('walletAddressInput2');
+    const submitBtn = document.getElementById('submitWalletBtn2');
+    const startBtn = document.getElementById('startGameBtn2');
+    const playAgainBtn = document.getElementById('playAgainBtn2');
+    const claimBtn = document.getElementById('claimAirdropBtn2');
+    
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitWalletMemory);
+    }
+    
+    if (walletInput) {
+        walletInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitWalletMemory();
+        });
+    }
+    
+    if (startBtn) {
+        startBtn.addEventListener('click', startMemoryGame);
+    }
+    
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', () => {
+            const resultDiv = document.getElementById('gameResult2');
+            const grid = document.getElementById('memoryGrid');
+            if (resultDiv) resultDiv.style.display = 'none';
+            if (grid) grid.innerHTML = '';
+            if (startBtn) startBtn.style.display = 'block';
+        });
+    }
+    
+    if (claimBtn) {
+        claimBtn.addEventListener('click', claimAirdropMemory);
+    }
+}
+
+function submitWalletMemory() {
+    const walletInput = document.getElementById('walletAddressInput2');
+    const address = walletInput ? walletInput.value.trim() : '';
+    
+    if (!address) {
+        alert('Please enter your Solana wallet address!');
+        return;
+    }
+    
+    if (!isValidSolanaAddress(address)) {
+        alert('Invalid Solana wallet address format!');
+        return;
+    }
+    
+    memoryGameState.walletAddress = address;
+    
+    // Store wallet address in Supabase
+    try {
+        if (supabaseClient) {
+            supabaseClient.from('game_participants').insert({
+                wallet_address: address,
+                created_at: new Date().toISOString()
+            }).catch(e => {
+                if (e.code !== '23505') console.error('Error storing wallet:', e);
+            });
+        }
+    } catch (err) {
+        console.error('Supabase error:', err);
+    }
+    
+    // Update UI
+    const walletStatus = document.getElementById('walletStatus2');
+    const walletConnected = document.getElementById('walletConnected2');
+    const gameArea = document.getElementById('gameArea2');
+    
+    if (walletStatus) walletStatus.style.display = 'none';
+    if (walletConnected) {
+        walletConnected.style.display = 'block';
+        const addrSpan = document.getElementById('walletAddress2');
+        if (addrSpan) {
+            addrSpan.textContent = address.substring(0, 8) + '...' + address.substring(address.length - 8);
+        }
+    }
+    if (gameArea) gameArea.style.display = 'block';
+}
+
+function startMemoryGame() {
+    if (!memoryGameState.walletAddress) {
+        alert('Please enter your wallet address first!');
+        return;
+    }
+    
+    memoryGameState.level = 3;
+    memoryGameState.moves = 0;
+    memoryGameState.matches = 0;
+    memoryGameState.matchedPairs = 0;
+    memoryGameState.flippedCards = [];
+    memoryGameState.gameActive = true;
+    
+    // Level 3: 6 pairs, Level 4: 8 pairs, Level 5: 12 pairs (EXTREMELY HARD)
+    memoryGameState.totalPairs = memoryGameState.level === 3 ? 6 : memoryGameState.level === 4 ? 8 : 12;
+    memoryGameState.timeLeft = memoryGameState.level === 5 ? 30 : memoryGameState.level === 4 ? 40 : 60;
+    
+    const startBtn = document.getElementById('startGameBtn2');
+    if (startBtn) startBtn.style.display = 'none';
+    const resultDiv = document.getElementById('gameResult2');
+    if (resultDiv) resultDiv.style.display = 'none';
+    
+    createMemoryGrid();
+    startMemoryTimer();
+    updateMemoryDisplay();
+}
+
+function createMemoryGrid() {
+    const grid = document.getElementById('memoryGrid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    const cols = memoryGameState.level === 5 ? 6 : memoryGameState.level === 4 ? 4 : 3;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    
+    const symbols = ['🥒', '🍌', '🍎', '🍊', '🍇', '🍓', '🍑', '🥝', '🍉', '🍐', '🥭', '🍋'];
+    const selectedSymbols = symbols.slice(0, memoryGameState.totalPairs);
+    const cardValues = [...selectedSymbols, ...selectedSymbols].sort(() => Math.random() - 0.5);
+    
+    cardValues.forEach((value, index) => {
+        const card = document.createElement('div');
+        card.className = 'memory-card';
+        card.dataset.index = index;
+        card.dataset.value = value;
+        card.textContent = '?';
+        card.addEventListener('click', () => flipMemoryCard(card));
+        grid.appendChild(card);
+    });
+    
+    memoryGameState.cards = Array.from(grid.children);
+}
+
+function flipMemoryCard(card) {
+    if (!memoryGameState.gameActive) return;
+    if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+    if (memoryGameState.flippedCards.length >= 2) return;
+    
+    card.classList.add('flipped');
+    card.textContent = card.dataset.value;
+    memoryGameState.flippedCards.push(card);
+    
+    if (memoryGameState.flippedCards.length === 2) {
+        memoryGameState.moves++;
+        updateMemoryDisplay();
+        checkMemoryMatch();
+    }
+}
+
+function checkMemoryMatch() {
+    const [card1, card2] = memoryGameState.flippedCards;
+    
+    if (card1.dataset.value === card2.dataset.value) {
+        // Match!
+        setTimeout(() => {
+            card1.classList.add('matched');
+            card2.classList.add('matched');
+            card1.classList.remove('flipped');
+            card2.classList.remove('flipped');
+            memoryGameState.matchedPairs++;
+            memoryGameState.matches = memoryGameState.matchedPairs;
+            memoryGameState.flippedCards = [];
+            updateMemoryDisplay();
+            
+            if (memoryGameState.matchedPairs >= memoryGameState.totalPairs) {
+                completeMemoryLevel();
+            }
+        }, 500);
+    } else {
+        // No match
+        setTimeout(() => {
+            card1.classList.add('wrong');
+            card2.classList.add('wrong');
+            setTimeout(() => {
+                card1.classList.remove('flipped', 'wrong');
+                card2.classList.remove('flipped', 'wrong');
+                card1.textContent = '?';
+                card2.textContent = '?';
+                memoryGameState.flippedCards = [];
+            }, 1000);
+        }, 500);
+    }
+}
+
+function completeMemoryLevel() {
+    if (memoryGameState.level >= 5) {
+        memoryGameState.gameActive = false;
+        stopMemoryTimer();
+        showMemoryResult(true);
+    } else {
+        memoryGameState.level++;
+        memoryGameState.matchedPairs = 0;
+        memoryGameState.flippedCards = [];
+        memoryGameState.totalPairs = memoryGameState.level === 4 ? 8 : 12;
+        memoryGameState.timeLeft = memoryGameState.level === 5 ? 30 : 40;
+        
+        const instructions = document.getElementById('gameInstructions2');
+        if (instructions) {
+            instructions.textContent = `Level ${memoryGameState.level - 1} Complete! Starting Level ${memoryGameState.level}...`;
+            setTimeout(() => {
+                instructions.textContent = memoryGameState.level === 5 
+                    ? `⚠️ LEVEL 5: Match ${memoryGameState.totalPairs} pairs in ${memoryGameState.timeLeft}s - EXTREME DIFFICULTY! ⚠️`
+                    : `Match ${memoryGameState.totalPairs} pairs! Complete Level 5 to win!`;
+            }, 2000);
+        }
+        
+        setTimeout(() => {
+            createMemoryGrid();
+            updateMemoryDisplay();
+        }, 1500);
+    }
+}
+
+function startMemoryTimer() {
+    if (memoryGameState.gameTimer) clearInterval(memoryGameState.gameTimer);
+    memoryGameState.gameTimer = setInterval(() => {
+        memoryGameState.timeLeft--;
+        updateMemoryDisplay();
+        if (memoryGameState.timeLeft <= 0) {
+            memoryGameState.gameActive = false;
+            stopMemoryTimer();
+            showMemoryResult(false);
+        }
+    }, 1000);
+}
+
+function stopMemoryTimer() {
+    if (memoryGameState.gameTimer) {
+        clearInterval(memoryGameState.gameTimer);
+        memoryGameState.gameTimer = null;
+    }
+}
+
+function updateMemoryDisplay() {
+    const levelEl = document.getElementById('gameLevel2');
+    const movesEl = document.getElementById('gameMoves2');
+    const timeEl = document.getElementById('gameTime2');
+    const matchesEl = document.getElementById('gameMatches2');
+    
+    if (levelEl) levelEl.textContent = memoryGameState.level;
+    if (movesEl) movesEl.textContent = memoryGameState.moves;
+    if (timeEl) {
+        timeEl.textContent = memoryGameState.timeLeft;
+        if (memoryGameState.timeLeft <= 5) {
+            timeEl.style.color = '#ef4444';
+            timeEl.style.animation = 'pulse 0.5s infinite';
+        } else {
+            timeEl.style.color = '';
+            timeEl.style.animation = '';
+        }
+    }
+    if (matchesEl) matchesEl.textContent = `${memoryGameState.matches}/${memoryGameState.totalPairs}`;
+}
+
+function showMemoryResult(won) {
+    const resultDiv = document.getElementById('gameResult2');
+    const messageEl = document.getElementById('resultMessage2');
+    const claimBtn = document.getElementById('claimAirdropBtn2');
+    
+    if (resultDiv) resultDiv.style.display = 'block';
+    if (messageEl) {
+        if (won) {
+            messageEl.textContent = '🎉 Congratulations! You completed Level 5! 🎉';
+            messageEl.style.color = '#4ade80';
+            if (claimBtn) claimBtn.style.display = 'block';
+        } else {
+            messageEl.textContent = '⏰ Time\'s up! Try again!';
+            messageEl.style.color = '#ef4444';
+            if (claimBtn) claimBtn.style.display = 'none';
+        }
+    }
+}
+
+async function claimAirdropMemory() {
+    if (!memoryGameState.walletAddress || memoryGameState.level < 5) {
+        alert('You must complete level 5 to claim the airdrop!');
+        return;
+    }
+    
+    const claimBtn = document.getElementById('claimAirdropBtn2');
+    if (claimBtn) {
+        claimBtn.disabled = true;
+        claimBtn.textContent = 'Processing...';
+    }
+    
+    try {
+        // Check if already claimed
+        let alreadyClaimed = false;
+        if (supabaseClient) {
+            const { data } = await supabaseClient
+                .from('game_winners')
+                .select('*')
+                .eq('wallet_address', memoryGameState.walletAddress)
+                .single();
+            
+            if (data) alreadyClaimed = true;
+        }
+        
+        if (alreadyClaimed) {
+            alert('❌ You have already claimed your airdrop!');
+            if (claimBtn) {
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim SOL Airdrop';
+            }
+            return;
+        }
+        
+        // Store winner
+        if (supabaseClient) {
+            const { error } = await supabaseClient.from('game_winners').insert({
+                wallet_address: memoryGameState.walletAddress,
+                level: memoryGameState.level,
+                score: memoryGameState.moves,
+                claimed_at: new Date().toISOString()
+            });
+            
+            if (error) throw error;
+        }
+        
+        alert('✅ Success! Your wallet address has been recorded. SOL airdrop will be sent manually!');
+        if (claimBtn) claimBtn.style.display = 'none';
+        
+        // Refresh leaderboard
+        if (typeof loadLeaderboard === 'function') {
+            loadLeaderboard();
+        }
+    } catch (error) {
+        console.error('Airdrop claim error:', error);
+        alert('❌ Error claiming airdrop. Please try again.');
+        if (claimBtn) {
+            claimBtn.disabled = false;
+            claimBtn.textContent = 'Claim SOL Airdrop';
+        }
+    }
+}
+
 

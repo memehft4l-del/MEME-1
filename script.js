@@ -27,7 +27,7 @@ const PAYOUT_WALLET = '7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN';
 const DEV_WALLET = '7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN';
 const BET_AMOUNT = 0.1; // Fixed bet amount in SOL
 const HOUSE_FEE_PERCENT = 5; // 5% house fee
-const WIN_PROBABILITY = 0.45; // 45% chance to win (house edge)
+const WIN_PROBABILITY = 0.35; // 35% chance to win (65% house edge)
 let totalSolPaidOut = 0;
 
 // Supabase Configuration
@@ -2699,6 +2699,15 @@ function initCasinoGame() {
             document.getElementById('gameResult3').style.display = 'none';
             document.getElementById('betStatus').textContent = '';
             document.getElementById('betStatus').className = 'bet-status';
+            const coin = document.getElementById('coin');
+            const coinResult = document.getElementById('coinResult');
+            if (coin) {
+                coin.classList.remove('flipping', 'heads', 'tails');
+            }
+            if (coinResult) {
+                coinResult.textContent = '';
+                coinResult.className = 'coin-result';
+            }
         });
     }
     
@@ -2916,22 +2925,46 @@ async function getCasinoTransactionDetails(signature) {
 async function processBet(transaction) {
     const statusEl = document.getElementById('betStatus');
     const verifyBtn = document.getElementById('verifyBetBtn');
+    const coin = document.getElementById('coin');
+    const coinResult = document.getElementById('coinResult');
+    
+    if (verifyBtn) verifyBtn.disabled = true;
+    if (coinResult) coinResult.textContent = '';
     
     try {
+        // Animate coin flip
+        if (coin) {
+            coin.classList.add('flipping');
+        }
+        
+        // Wait for animation (2 seconds)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         // No house fee for now - testing mode
         const houseFee = 0;
         const netBetAmount = BET_AMOUNT;
         
-        // Determine win/loss (50% chance to win - fair odds for testing)
-        const isWin = Math.random() < 0.5;
+        // Determine win/loss (35% chance to win - 65% house edge)
+        const isWin = Math.random() < WIN_PROBABILITY;
         const winAmount = isWin ? netBetAmount * 2 : 0; // 2x payout if win
         const payoutAmount = isWin ? winAmount : 0;
+        
+        // Stop animation and show result
+        if (coin) {
+            coin.classList.remove('flipping');
+            coin.classList.add(isWin ? 'heads' : 'tails');
+        }
+        
+        if (coinResult) {
+            coinResult.textContent = isWin ? '🟢 HEADS - YOU WIN!' : '🔴 TAILS - HOUSE WINS';
+            coinResult.className = 'coin-result ' + (isWin ? 'win' : 'loss');
+        }
         
         // Store bet in Supabase
         const betData = {
             wallet_address: casinoState.walletAddress,
             bet_amount: BET_AMOUNT,
-            bet_type: 'self_bet',
+            bet_type: 'coin_flip',
             game_result: isWin ? 'win' : 'loss',
             win_amount: winAmount,
             payout_amount: payoutAmount,
@@ -2952,8 +2985,8 @@ async function processBet(transaction) {
         showCasinoResult(isWin, payoutAmount, houseFee);
         
         if (statusEl) {
-            statusEl.textContent = `✅ Bet processed! ${isWin ? 'WINNER! 🎉' : 'Better luck next time!'}`;
-            statusEl.className = 'bet-status success';
+            statusEl.textContent = `✅ ${isWin ? 'WINNER! 🎉' : 'Better luck next time!'}`;
+            statusEl.className = 'bet-status ' + (isWin ? 'success' : 'error');
         }
         
         // Reload stats
@@ -2961,6 +2994,7 @@ async function processBet(transaction) {
         
     } catch (error) {
         console.error('Error processing bet:', error);
+        if (coin) coin.classList.remove('flipping');
         if (statusEl) {
             statusEl.textContent = '❌ Error processing bet. Please contact support.';
             statusEl.className = 'bet-status error';

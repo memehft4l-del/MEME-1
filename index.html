@@ -323,14 +323,22 @@
                             </div>
                             
                             <div class="bet-section">
-                                <h4>Place Your Bet</h4>
+                                <h4>🎰 Coin Flip Casino</h4>
                                 <p class="bet-info">Bet Amount: <strong>0.1 SOL</strong> (Fixed)</p>
-                                <p class="bet-info">Odds: <strong>50% Win</strong> | Payout: <strong>2x</strong></p>
+                                <p class="bet-info">Your Win Chance: <strong>35%</strong> | Payout: <strong>2x</strong></p>
                                 <p class="bet-instructions" style="background: rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.4);">
-                                    ⚠️ TEST MODE - Click "Play Now" to simulate a bet (no real SOL required)
+                                    ⚠️ TEST MODE - Click "Flip Coin" to play (no real SOL required)
                                 </p>
                                 
-                                <button id="verifyBetBtn" class="verify-bet-btn">Play Now</button>
+                                <div class="coin-flip-container">
+                                    <div id="coin" class="coin">
+                                        <div class="coin-face coin-heads">🪙</div>
+                                        <div class="coin-face coin-tails">🪙</div>
+                                    </div>
+                                    <div id="coinResult" class="coin-result"></div>
+                                </div>
+                                
+                                <button id="verifyBetBtn" class="verify-bet-btn">Flip Coin</button>
                                 <div id="betStatus" class="bet-status"></div>
                             </div>
                             

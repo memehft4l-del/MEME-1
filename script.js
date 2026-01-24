@@ -2793,11 +2793,14 @@ async function verifyAndPlayBet() {
     
     if (verifyBtn) verifyBtn.disabled = true;
     if (statusEl) {
-        statusEl.textContent = 'Checking for bet transaction...';
+        statusEl.textContent = 'Checking for bet transaction... (this may take a few seconds)';
         statusEl.className = 'bet-status pending';
     }
     
     try {
+        // Wait a moment for transaction to be confirmed
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         // Check for recent transaction from user's wallet to dev wallet
         const transaction = await findBetTransaction();
         
@@ -2862,6 +2865,8 @@ async function verifyAndPlayBet() {
 
 async function findBetTransaction() {
     try {
+        console.log('Looking for transaction from:', casinoState.walletAddress, 'to:', DEV_WALLET);
+        
         // Get recent transactions from dev wallet
         const response = await fetch(HELIUS_API_URL, {
             method: 'POST',
@@ -2872,33 +2877,50 @@ async function findBetTransaction() {
                 method: 'getSignaturesForAddress',
                 params: [
                     DEV_WALLET,
-                    { limit: 50, commitment: 'confirmed' }
+                    { limit: 100, commitment: 'confirmed' }
                 ]
             })
         });
         
         const data = await response.json();
-        if (data.error || !data.result) return null;
+        console.log('Transaction signatures response:', data);
         
-        // Check recent transactions
-        for (const sigInfo of data.result.slice(0, 20)) {
+        if (data.error || !data.result) {
+            console.error('Error getting signatures:', data.error);
+            return null;
+        }
+        
+        // Check recent transactions (last 30, within last 10 minutes)
+        const now = Math.floor(Date.now() / 1000);
+        const tenMinutesAgo = now - 600;
+        
+        for (const sigInfo of data.result.slice(0, 30)) {
+            // Skip if transaction is too old (more than 10 minutes)
+            if (sigInfo.blockTime && sigInfo.blockTime < tenMinutesAgo) {
+                continue;
+            }
+            
+            console.log('Checking transaction:', sigInfo.signature);
             const txDetails = await getCasinoTransactionDetails(sigInfo.signature);
+            console.log('Transaction details:', txDetails);
             
             if (txDetails && 
                 txDetails.from === casinoState.walletAddress &&
                 txDetails.to === DEV_WALLET &&
                 txDetails.amount >= BET_AMOUNT * 0.99 && // Allow small rounding
                 txDetails.amount <= BET_AMOUNT * 1.01) {
+                console.log('Found matching transaction!', txDetails);
                 return {
                     signature: sigInfo.signature,
                     amount: txDetails.amount,
-                    timestamp: sigInfo.blockTime
+                    timestamp: sigInfo.blockTime || now
                 };
             }
             
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
         
+        console.log('No matching transaction found');
         return null;
     } catch (error) {
         console.error('Error finding transaction:', error);
@@ -2923,32 +2945,63 @@ async function getCasinoTransactionDetails(signature) {
         });
         
         const data = await response.json();
-        if (data.error || !data.result) return null;
+        if (data.error || !data.result) {
+            console.log('Transaction fetch error:', data.error);
+            return null;
+        }
         
         const tx = data.result;
+        if (!tx || !tx.transaction) return null;
+        
+        // Check if transaction failed
+        if (tx.meta?.err) {
+            console.log('Transaction failed:', tx.meta.err);
+            return null;
+        }
+        
         const accountKeys = tx.transaction?.message?.accountKeys || [];
         const preBalances = tx.meta?.preBalances || [];
         const postBalances = tx.meta?.postBalances || [];
         
-        // Find sender and receiver
+        // Find sender and receiver by balance changes
         let fromAddress = null;
         let toAddress = null;
         let amount = 0;
         
+        // Method 1: Check balance changes
         for (let i = 0; i < accountKeys.length; i++) {
             const key = typeof accountKeys[i] === 'string' ? accountKeys[i] : accountKeys[i].pubkey;
             const preBalance = preBalances[i] || 0;
             const postBalance = postBalances[i] || 0;
             const balanceChange = (preBalance - postBalance) / 1e9;
             
-            if (balanceChange > 0 && key !== DEV_WALLET) {
+            // Sender lost SOL (positive change means they sent)
+            if (balanceChange > 0.0001 && key !== DEV_WALLET) {
                 fromAddress = key;
                 amount = balanceChange;
             }
-            if (balanceChange < 0 && key === DEV_WALLET) {
+            // Receiver gained SOL (negative change means they received)
+            if (balanceChange < -0.0001 && key === DEV_WALLET) {
                 toAddress = key;
             }
         }
+        
+        // Method 2: Check transfer instructions if balance method didn't work
+        if (!fromAddress && tx.transaction?.message?.instructions) {
+            for (const instruction of tx.transaction.message.instructions) {
+                if (instruction.parsed?.type === 'transfer') {
+                    const parsed = instruction.parsed;
+                    if (parsed.info?.destination === DEV_WALLET && parsed.info?.lamports) {
+                        fromAddress = parsed.info.source;
+                        toAddress = DEV_WALLET;
+                        amount = parsed.info.lamports / 1e9;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        console.log('Parsed transaction:', { fromAddress, toAddress, amount });
         
         if (fromAddress && toAddress === DEV_WALLET && amount > 0) {
             return { from: fromAddress, to: toAddress, amount: amount };

@@ -135,12 +135,24 @@
             </div>
         </div>
         
+        <!-- Game Selection -->
+        <div class="game-selection-section">
+            <div class="panel-section">
+                <h3>🎮 CHOOSE YOUR CHALLENGE</h3>
+                <div class="game-buttons">
+                    <button id="casinoBtn" class="game-select-btn active">🎰 Casino</button>
+                    <button id="game1Btn" class="game-select-btn">Reaction Game</button>
+                    <button id="game2Btn" class="game-select-btn">Memory Game</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Leaderboard Section -->
-        <div class="leaderboard-section">
+        <div class="leaderboard-section compact">
             <div class="panel-section">
                 <h3>🏆 LEADERBOARD</h3>
                 <div class="leaderboard-content">
-                    <div class="payout-stats">
+                    <div class="payout-stats compact">
                         <div class="payout-stat">
                             <span class="payout-label">Total SOL Paid Out:</span>
                             <span class="payout-value" id="totalSolPaid">Loading...</span>
@@ -150,21 +162,9 @@
                             <span class="payout-value" id="totalWinners">Loading...</span>
                         </div>
                     </div>
-                    <div id="leaderboardList" class="leaderboard-list">
+                    <div id="leaderboardList" class="leaderboard-list compact">
                         <p class="loading-text">Loading leaderboard...</p>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Game Selection -->
-        <div class="game-selection-section">
-            <div class="panel-section">
-                <h3>🎮 CHOOSE YOUR CHALLENGE</h3>
-                <div class="game-buttons">
-                    <button id="game1Btn" class="game-select-btn active">Reaction Game</button>
-                    <button id="game2Btn" class="game-select-btn">Memory Game</button>
-                    <button id="casinoBtn" class="game-select-btn">🎰 Casino</button>
                 </div>
             </div>
         </div>
@@ -336,6 +336,12 @@
                                         <span class="wallet-address" id="devWalletAddress">7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN</span>
                                         <button class="copy-btn" id="copyWalletBtn">📋 Copy</button>
                                     </div>
+                                    <a href="solana:7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN?amount=0.1&reference=bet" 
+                                       class="solana-pay-btn" 
+                                       id="solanaPayBtn"
+                                       target="_blank">
+                                        💰 Send 0.1 SOL (Opens Wallet)
+                                    </a>
                                 </div>
                                 
                                 <div class="coin-flip-container">

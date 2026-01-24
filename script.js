@@ -2265,6 +2265,14 @@ function initGameSelection() {
     const memoryGame = document.getElementById('memoryGame');
     const casinoGame = document.getElementById('casinoGame');
     
+    // Start with casino game active
+    if (casinoBtn && casinoGame) {
+        casinoBtn.classList.add('active');
+        casinoGame.style.display = 'block';
+        if (reactionGame) reactionGame.style.display = 'none';
+        if (memoryGame) memoryGame.style.display = 'none';
+    }
+    
     if (game1Btn) {
         game1Btn.addEventListener('click', () => {
             game1Btn.classList.add('active');
@@ -2734,12 +2742,13 @@ function submitWalletCasino() {
     // Store wallet address
     try {
         if (supabaseClient) {
-            supabaseClient.from('game_participants').insert({
+            const { error } = await supabaseClient.from('game_participants').insert({
                 wallet_address: address,
                 created_at: new Date().toISOString()
-            }).catch(e => {
-                if (e.code !== '23505') console.error('Error storing wallet:', e);
             });
+            if (error && error.code !== '23505') {
+                console.error('Error storing wallet:', error);
+            }
         }
     } catch (err) {
         console.error('Supabase error:', err);
@@ -2760,11 +2769,15 @@ async function loadCasinoStats() {
     if (!casinoState.walletAddress || !supabaseClient) return;
     
     try {
-        const { data } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('casino_bets')
             .select('total_wagered, total_won, total_paid_out')
             .eq('wallet_address', casinoState.walletAddress)
-            .single();
+            .maybeSingle();
+        
+        if (error) {
+            console.error('Error loading casino stats:', error);
+        }
         
         if (data) {
             document.getElementById('totalWagered').textContent = 
@@ -2826,11 +2839,15 @@ async function verifyAndPlayBet() {
         
         // Check if this transaction was already used
         if (supabaseClient) {
-            const { data: existingBet } = await supabaseClient
+            const { data: existingBet, error } = await supabaseClient
                 .from('casino_bets')
                 .select('*')
                 .eq('wallet_address', casinoState.walletAddress)
-                .single();
+                .maybeSingle();
+            
+            if (error) {
+                console.error('Error checking existing bet:', error);
+            }
             
             // Check if transaction signature matches (if we stored it)
             // For now, we'll check by wallet and recent timestamp

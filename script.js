@@ -11,8 +11,6 @@ let raycaster = null;
 let mouse = new THREE.Vector2();
 let hasRealData = false; // Track if we've successfully fetched real data
 let realDataUpdateInterval = null;
-let photonParticles = null; // Photon particles around character
-let lastCameraDistance = 5;
 
 // Easter egg variables
 let konamiCode = [];
@@ -78,12 +76,12 @@ function initializeApp() {
         console.error('Error stack:', error.stack);
     }
     
-    // Initialize mini game
+    // Initialize challenge game
     try {
-        initMiniGame();
-        console.log('✅ Mini game initialized');
+        initChallengeGame();
+        console.log('✅ Challenge game initialized');
     } catch (error) {
-        console.error('❌ Mini game initialization failed:', error);
+        console.error('❌ Challenge game initialization failed:', error);
     }
     
     // Initialize Supabase FIRST to get token address, then start market cap updates
@@ -188,9 +186,6 @@ function initScene() {
     
     // Create BOBO character
     createBoboCharacter();
-    
-    // Create photon particle system around character
-    createPhotonParticles();
     
     // Initialize raycaster for click detection
     raycaster = new THREE.Raycaster();
@@ -1130,53 +1125,6 @@ function animate() {
         controls.update();
     }
     
-    // Calculate camera distance for photon visibility
-    if (camera && pepeGroup) {
-        const cameraDistance = camera.position.distanceTo(pepeGroup.position);
-        lastCameraDistance = cameraDistance;
-        
-        // Update photon particles visibility based on camera distance
-        if (photonParticles) {
-            // More visible when closer, fade when far
-            const visibility = Math.max(0, Math.min(1, (8 - cameraDistance) / 4));
-            photonParticles.material.opacity = visibility * 0.8;
-            
-            // Animate photon particles
-            const positions = photonParticles.geometry.attributes.position.array;
-            const time = Date.now() * 0.001;
-            
-            for (let i = 0; i < positions.length; i += 3) {
-                // Create orbiting motion
-                const radius = Math.sqrt(
-                    positions[i] * positions[i] + 
-                    positions[i + 1] * positions[i + 1] + 
-                    positions[i + 2] * positions[i + 2]
-                );
-                
-                const theta = Math.atan2(positions[i + 1], positions[i]) + time * 0.1;
-                const phi = Math.acos(positions[i + 2] / radius) + time * 0.05;
-                
-                positions[i] = radius * Math.sin(phi) * Math.cos(theta);
-                positions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
-                positions[i + 2] = radius * Math.cos(phi);
-            }
-            
-            photonParticles.geometry.attributes.position.needsUpdate = true;
-            photonParticles.rotation.y += 0.002;
-        }
-    }
-    
-    // Subtle idle animation (breathing effect) - only if not dragging
-    if (pepeGroup) {
-        const breathing = Math.sin(Date.now() / 2000) * 0.02;
-        pepeGroup.scale.set(1 + breathing, 1 + breathing, 1 + breathing);
-        
-        // Subtle rotation
-        if (!controls || !controls.enabled) {
-            pepeGroup.rotation.y = Math.sin(Date.now() / 3000) * 0.05;
-        }
-    }
-    
     renderer.render(scene, camera);
 }
 
@@ -1563,110 +1511,311 @@ function showEasterEggMessage(message) {
     }, 3000);
 }
 
-// Mini Game Logic
+// Challenge Game Logic
+let wallet = null;
 let gameState = {
-    clicks: 0,
-    power: 1,
-    total: 0,
-    upgrades: {
-        upgrade1: false,
-        upgrade2: false,
-        upgrade3: false
-    }
+    level: 1,
+    score: 0,
+    timeLeft: 30,
+    targetScore: 10,
+    gameActive: false,
+    gameTimer: null,
+    completedLevels: []
 };
 
-function initMiniGame() {
-    // Load saved game state
-    const saved = localStorage.getItem('bobo_game_state');
-    if (saved) {
-        try {
-            gameState = JSON.parse(saved);
-        } catch (e) {
-            console.error('Failed to load game state:', e);
+const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
+
+// Initialize wallet connection
+function initChallengeGame() {
+    // Check if wallet is already connected
+    if (window.solana && window.solana.isPhantom) {
+        checkWalletConnection();
+    }
+    
+    // Connect wallet button
+    const connectBtn = document.getElementById('connectWalletBtn');
+    if (connectBtn) {
+        connectBtn.addEventListener('click', connectWallet);
+    }
+    
+    // Disconnect wallet button
+    const disconnectBtn = document.getElementById('disconnectWalletBtn');
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', disconnectWallet);
+    }
+    
+    // Play again button
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', startGame);
+    }
+    
+    // Claim airdrop button
+    const claimBtn = document.getElementById('claimAirdropBtn');
+    if (claimBtn) {
+        claimBtn.addEventListener('click', claimAirdrop);
+    }
+}
+
+async function connectWallet() {
+    try {
+        if (!window.solana || !window.solana.isPhantom) {
+            alert('Please install Phantom wallet!');
+            window.open('https://phantom.app/', '_blank');
+            return;
+        }
+        
+        const response = await window.solana.connect();
+        wallet = response.publicKey.toString();
+        
+        // Update UI
+        document.getElementById('walletStatus').style.display = 'none';
+        document.getElementById('walletConnected').style.display = 'block';
+        document.getElementById('walletAddress').textContent = 
+            wallet.substring(0, 4) + '...' + wallet.substring(wallet.length - 4);
+        document.getElementById('gameArea').style.display = 'block';
+        
+        console.log('Wallet connected:', wallet);
+    } catch (err) {
+        console.error('Wallet connection error:', err);
+        alert('Failed to connect wallet. Please try again.');
+    }
+}
+
+function disconnectWallet() {
+    if (window.solana) {
+        window.solana.disconnect();
+    }
+    wallet = null;
+    document.getElementById('walletStatus').style.display = 'block';
+    document.getElementById('walletConnected').style.display = 'none';
+    document.getElementById('gameArea').style.display = 'none';
+    stopGame();
+}
+
+async function checkWalletConnection() {
+    try {
+        if (window.solana && window.solana.isPhantom) {
+            const response = await window.solana.connect({ onlyIfTrusted: true });
+            wallet = response.publicKey.toString();
+            document.getElementById('walletStatus').style.display = 'none';
+            document.getElementById('walletConnected').style.display = 'block';
+            document.getElementById('walletAddress').textContent = 
+                wallet.substring(0, 4) + '...' + wallet.substring(wallet.length - 4);
+            document.getElementById('gameArea').style.display = 'block';
+        }
+    } catch (err) {
+        // Not connected, show connect button
+    }
+}
+
+function startGame() {
+    if (!wallet) {
+        alert('Please connect your wallet first!');
+        return;
+    }
+    
+    gameState.level = 1;
+    gameState.score = 0;
+    gameState.timeLeft = 30;
+    gameState.targetScore = 10;
+    gameState.gameActive = true;
+    gameState.completedLevels = [];
+    
+    document.getElementById('gameResult').style.display = 'none';
+    updateGameDisplay();
+    createGameGrid();
+    startTimer();
+}
+
+function createGameGrid() {
+    const grid = document.getElementById('gameGrid');
+    grid.innerHTML = '';
+    grid.className = 'game-grid';
+    
+    const gridSize = Math.min(5 + gameState.level, 8); // 5x5 to 8x8
+    grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    
+    const totalCells = gridSize * gridSize;
+    const targetCells = Math.min(3 + gameState.level, 8); // 3-8 target cells per level
+    
+    // Create cells
+    for (let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'game-cell';
+        cell.dataset.index = i;
+        grid.appendChild(cell);
+    }
+    
+    // Randomly select target cells
+    const targetIndices = [];
+    while (targetIndices.length < targetCells) {
+        const idx = Math.floor(Math.random() * totalCells);
+        if (!targetIndices.includes(idx)) {
+            targetIndices.push(idx);
         }
     }
+    
+    // Mark target cells
+    targetIndices.forEach(idx => {
+        const cell = grid.children[idx];
+        cell.classList.add('target-cell');
+        cell.addEventListener('click', handleCellClick);
+    });
+    
+    // Add click listeners to all cells
+    Array.from(grid.children).forEach(cell => {
+        if (!cell.classList.contains('target-cell')) {
+            cell.addEventListener('click', handleWrongClick);
+        }
+    });
+}
+
+function handleCellClick(e) {
+    if (!gameState.gameActive) return;
+    
+    const cell = e.target;
+    if (cell.classList.contains('clicked')) return;
+    
+    cell.classList.add('clicked');
+    cell.classList.remove('target-cell');
+    gameState.score++;
     
     updateGameDisplay();
     
-    // Click button
-    const clickBtn = document.getElementById('gameClickBtn');
-    if (clickBtn) {
-        clickBtn.addEventListener('click', () => {
-            gameState.clicks++;
-            gameState.total += gameState.power;
-            updateGameDisplay();
-            saveGameState();
-            
-            // Animate emoji
-            const emoji = clickBtn.querySelector('.game-emoji');
-            if (emoji) {
-                emoji.style.animation = 'none';
-                setTimeout(() => {
-                    emoji.style.animation = 'bounce 0.5s ease';
-                }, 10);
-            }
-        });
+    // Check if level complete
+    const remainingTargets = document.querySelectorAll('.target-cell:not(.clicked)').length;
+    if (remainingTargets === 0) {
+        completeLevel();
     }
+}
+
+function handleWrongClick(e) {
+    if (!gameState.gameActive) return;
     
-    // Upgrade buttons
-    const upgrades = [
-        { id: 'upgrade1', cost: 10, power: 2 },
-        { id: 'upgrade2', cost: 50, power: 5 },
-        { id: 'upgrade3', cost: 200, power: 20 }
-    ];
+    // Wrong click - lose points
+    gameState.score = Math.max(0, gameState.score - 1);
+    updateGameDisplay();
     
-    upgrades.forEach(upgrade => {
-        const btn = document.getElementById(upgrade.id);
-        if (btn) {
-            btn.addEventListener('click', () => {
-                if (gameState.total >= upgrade.cost && !gameState.upgrades[upgrade.id]) {
-                    gameState.total -= upgrade.cost;
-                    gameState.power += upgrade.power;
-                    gameState.upgrades[upgrade.id] = true;
-                    updateGameDisplay();
-                    saveGameState();
-                }
-            });
+    // Visual feedback
+    e.target.style.backgroundColor = '#ef4444';
+    setTimeout(() => {
+        e.target.style.backgroundColor = '';
+    }, 200);
+}
+
+function completeLevel() {
+    gameState.completedLevels.push(gameState.level);
+    
+    if (gameState.level >= 5) {
+        // Game won!
+        gameState.gameActive = false;
+        stopTimer();
+        showGameResult(true);
+    } else {
+        // Next level
+        gameState.level++;
+        gameState.targetScore = 10 + (gameState.level * 2);
+        setTimeout(() => {
+            createGameGrid();
+        }, 1000);
+    }
+}
+
+function startTimer() {
+    gameState.gameTimer = setInterval(() => {
+        gameState.timeLeft--;
+        updateGameDisplay();
+        
+        if (gameState.timeLeft <= 0) {
+            gameState.gameActive = false;
+            stopTimer();
+            showGameResult(false);
         }
-    });
+    }, 1000);
+}
+
+function stopTimer() {
+    if (gameState.gameTimer) {
+        clearInterval(gameState.gameTimer);
+        gameState.gameTimer = null;
+    }
+}
+
+function stopGame() {
+    gameState.gameActive = false;
+    stopTimer();
 }
 
 function updateGameDisplay() {
-    const clicksEl = document.getElementById('gameClicks');
-    const powerEl = document.getElementById('gamePower');
-    const totalEl = document.getElementById('gameTotal');
-    
-    if (clicksEl) clicksEl.textContent = gameState.clicks.toLocaleString();
-    if (powerEl) powerEl.textContent = gameState.power.toLocaleString();
-    if (totalEl) totalEl.textContent = gameState.total.toLocaleString();
-    
-    // Update upgrade buttons
-    const upgrades = [
-        { id: 'upgrade1', cost: 10 },
-        { id: 'upgrade2', cost: 50 },
-        { id: 'upgrade3', cost: 200 }
-    ];
-    
-    upgrades.forEach(upgrade => {
-        const btn = document.getElementById(upgrade.id);
-        if (btn) {
-            const canAfford = gameState.total >= upgrade.cost;
-            const owned = gameState.upgrades[upgrade.id];
-            
-            btn.disabled = !canAfford || owned;
-            if (owned) {
-                btn.classList.add('owned');
-                btn.textContent = btn.textContent.replace(/Cost: \d+/, 'OWNED');
-            }
-        }
-    });
+    document.getElementById('gameLevel').textContent = gameState.level;
+    document.getElementById('gameScore').textContent = gameState.score;
+    document.getElementById('gameTime').textContent = gameState.timeLeft;
 }
 
-function saveGameState() {
+function showGameResult(won) {
+    const resultDiv = document.getElementById('gameResult');
+    const messageEl = document.getElementById('resultMessage');
+    const claimBtn = document.getElementById('claimAirdropBtn');
+    
+    resultDiv.style.display = 'block';
+    
+    if (won) {
+        messageEl.textContent = '🎉 Congratulations! You completed the challenge! 🎉';
+        messageEl.style.color = '#4ade80';
+        claimBtn.style.display = 'block';
+    } else {
+        messageEl.textContent = '⏰ Time\'s up! Try again to win SOL airdrop!';
+        messageEl.style.color = '#ef4444';
+        claimBtn.style.display = 'none';
+    }
+}
+
+async function claimAirdrop() {
+    if (!wallet) {
+        alert('Wallet not connected!');
+        return;
+    }
+    
+    if (gameState.level < 5) {
+        alert('You must complete level 5 to claim the airdrop!');
+        return;
+    }
+    
     try {
-        localStorage.setItem('bobo_game_state', JSON.stringify(gameState));
-    } catch (e) {
-        console.error('Failed to save game state:', e);
+        const claimBtn = document.getElementById('claimAirdropBtn');
+        claimBtn.disabled = true;
+        claimBtn.textContent = 'Processing...';
+        
+        // Send request to backend API to process airdrop
+        const response = await fetch('/api/claim-airdrop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                wallet: wallet,
+                level: gameState.level,
+                score: gameState.score
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✅ Success! ${data.amount} SOL has been sent to your wallet!`);
+            claimBtn.style.display = 'none';
+        } else {
+            alert(`❌ Error: ${data.message || 'Failed to process airdrop'}`);
+            claimBtn.disabled = false;
+            claimBtn.textContent = 'Claim SOL Airdrop';
+        }
+    } catch (error) {
+        console.error('Airdrop claim error:', error);
+        alert('❌ Error claiming airdrop. Please contact support.');
+        const claimBtn = document.getElementById('claimAirdropBtn');
+        claimBtn.disabled = false;
+        claimBtn.textContent = 'Claim SOL Airdrop';
     }
 }
 

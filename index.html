@@ -104,13 +104,9 @@
             <div class="center-panel">
                 <div id="canvas-container">
                     <canvas id="pepe-canvas"></canvas>
-                    <div class="canvas-overlay">
-                        <div class="pulse-indicator"></div>
-                        <div class="view-hint">✨ Photons visible when zoomed in ✨</div>
-                    </div>
                 </div>
                 <div class="canvas-controls">
-                    <p class="control-hint">Click and drag to rotate • Scroll to zoom • Click BOBO for surprises!</p>
+                    <p class="control-hint">Click and drag to rotate • Scroll to zoom</p>
                 </div>
             </div>
 
@@ -139,39 +135,43 @@
             </div>
         </div>
         
-        <!-- Mini Game Section -->
-        <div class="game-section">
-            <div class="panel-section">
-                <h3>🎮 BOBO CLICKER</h3>
-                <div class="game-content">
-                    <div class="game-stats">
-                        <div class="game-stat">
-                            <span class="game-label">Clicks:</span>
-                            <span class="game-value" id="gameClicks">0</span>
+        <!-- Challenge Game Section -->
+        <div class="challenge-game-section">
+            <div class="panel-section challenge-panel">
+                <h3>🎮 BOBO CHALLENGE - Win SOL Airdrop!</h3>
+                <div class="challenge-content">
+                    <div class="wallet-connect-section">
+                        <div id="walletStatus" class="wallet-status">
+                            <p>Connect your Solana wallet to play</p>
+                            <button id="connectWalletBtn" class="connect-wallet-btn">
+                                <span>🔗</span> Connect Wallet
+                            </button>
                         </div>
-                        <div class="game-stat">
-                            <span class="game-label">Power:</span>
-                            <span class="game-value" id="gamePower">1</span>
-                        </div>
-                        <div class="game-stat">
-                            <span class="game-label">Total:</span>
-                            <span class="game-value" id="gameTotal">0</span>
+                        <div id="walletConnected" class="wallet-connected" style="display: none;">
+                            <p>Connected: <span id="walletAddress"></span></p>
+                            <button id="disconnectWalletBtn" class="disconnect-btn">Disconnect</button>
                         </div>
                     </div>
-                    <button class="game-button" id="gameClickBtn">
-                        <span class="game-emoji">🥒</span>
-                        <span class="game-button-text">CLICK BOBO!</span>
-                    </button>
-                    <div class="game-upgrades">
-                        <button class="upgrade-btn" id="upgrade1" data-cost="10" data-power="2">
-                            +2 Power (Cost: 10)
-                        </button>
-                        <button class="upgrade-btn" id="upgrade2" data-cost="50" data-power="5">
-                            +5 Power (Cost: 50)
-                        </button>
-                        <button class="upgrade-btn" id="upgrade3" data-cost="200" data-power="20">
-                            +20 Power (Cost: 200)
-                        </button>
+                    
+                    <div id="gameArea" class="game-area" style="display: none;">
+                        <div class="game-info">
+                            <div class="game-stat-display">
+                                <span>Level: <strong id="gameLevel">1</strong></span>
+                                <span>Score: <strong id="gameScore">0</strong></span>
+                                <span>Time: <strong id="gameTime">30</strong>s</span>
+                            </div>
+                            <p class="game-instructions">
+                                Click the green squares as fast as you can! Complete level 5 to win SOL airdrop.
+                            </p>
+                        </div>
+                        <div id="gameGrid" class="game-grid"></div>
+                        <div id="gameResult" class="game-result" style="display: none;">
+                            <h4 id="resultMessage"></h4>
+                            <button id="claimAirdropBtn" class="claim-btn" style="display: none;">
+                                Claim SOL Airdrop
+                            </button>
+                            <button id="playAgainBtn" class="play-again-btn">Play Again</button>
+                        </div>
                     </div>
                 </div>
             </div>

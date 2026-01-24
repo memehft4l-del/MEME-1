@@ -2704,6 +2704,27 @@ function initCasinoGame() {
         });
     }
     
+    // Update Solana payment link with wallet address if available
+    const solanaPayBtn = document.getElementById('solanaPayBtn');
+    if (solanaPayBtn) {
+        solanaPayBtn.addEventListener('click', (e) => {
+            // Try multiple wallet formats
+            const recipient = '7H7hsiRwGrZpWpKbPXEsSrqNCtuT3FDDHGFTsP4sHDyN';
+            const amount = '0.1';
+            
+            // Try Phantom first
+            const phantomUrl = `https://phantom.app/ul/v1/send?recipient=${recipient}&amount=${amount}`;
+            window.open(phantomUrl, '_blank');
+            
+            // Also try solflare
+            setTimeout(() => {
+                const solflareUrl = `https://solflare.com/access-wallet?recipient=${recipient}&amount=${amount}`;
+                // Don't open automatically, just log
+                console.log('Alternative Solflare URL:', solflareUrl);
+            }, 100);
+        });
+    }
+    
     if (playAgainBtn) {
         playAgainBtn.addEventListener('click', () => {
             document.getElementById('gameResult3').style.display = 'none';

@@ -3238,6 +3238,7 @@ async function processBet(transaction) {
                 });
                 
                 // Build upsert data - use numeric values directly, Supabase will handle conversion
+                // Don't include house_fee_collected if column doesn't exist
                 const upsertData = {
                     wallet_address: casinoState.walletAddress,
                     total_bets: currentBets,
@@ -3246,9 +3247,13 @@ async function processBet(transaction) {
                     total_wagered: currentWagered,
                     total_won: currentWon,
                     total_paid_out: currentPaidOut,
-                    house_fee_collected: currentHouseFee,
                     last_bet_at: new Date().toISOString()
                 };
+                
+                // Only add house_fee_collected if the column exists (check from existing record)
+                if (existing?.house_fee_collected !== undefined) {
+                    upsertData.house_fee_collected = currentHouseFee;
+                }
                 
                 console.log('Attempting to upsert:', upsertData);
                 
@@ -3264,11 +3269,33 @@ async function processBet(transaction) {
                     console.error('❌ Upsert error:', upsertError);
                     console.error('Error code:', upsertError.code);
                     console.error('Error message:', upsertError.message);
-                    console.error('Error details:', upsertError);
                     
-                    // Alert user that stats might not be saved
-                    if (statusEl) {
-                        statusEl.textContent += ' (Stats may not have saved - check console)';
+                    // If error is about house_fee_collected, try without it
+                    if (upsertError.message && upsertError.message.includes('house_fee_collected')) {
+                        console.log('Retrying without house_fee_collected...');
+                        delete upsertData.house_fee_collected;
+                        
+                        const { data: retryResult, error: retryError } = await supabaseClient
+                            .from('casino_bets')
+                            .upsert(upsertData, {
+                                onConflict: 'wallet_address'
+                            })
+                            .select();
+                        
+                        if (retryError) {
+                            console.error('❌ Retry also failed:', retryError);
+                            if (statusEl) {
+                                statusEl.textContent += ' (Stats may not have saved - check console)';
+                            }
+                        } else {
+                            console.log('✅ Bet saved to Supabase successfully (without house_fee_collected)!');
+                            console.log('Saved data:', retryResult);
+                        }
+                    } else {
+                        // Alert user that stats might not be saved
+                        if (statusEl) {
+                            statusEl.textContent += ' (Stats may not have saved - check console)';
+                        }
                     }
                 } else {
                     console.log('✅ Bet saved to Supabase successfully!');

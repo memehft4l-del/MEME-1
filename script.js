@@ -348,66 +348,6 @@ function createBoboCharacter() {
     scene.add(pepeGroup);
 }
 
-// Create photon particles that appear when viewing the character
-function createPhotonParticles() {
-    const particleCount = 200;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
-    
-    const color1 = new THREE.Color(0x4ade80); // Green
-    const color2 = new THREE.Color(0xff6b6b); // Red/Pink
-    const color3 = new THREE.Color(0x667eea); // Purple
-    
-    for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        
-        // Position particles in a sphere around the character
-        const radius = 3 + Math.random() * 4;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(Math.random() * 2 - 1);
-        
-        positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
-        positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-        positions[i3 + 2] = radius * Math.cos(phi);
-        
-        // Random colors
-        const colorChoice = Math.random();
-        let color;
-        if (colorChoice < 0.33) {
-            color = color1;
-        } else if (colorChoice < 0.66) {
-            color = color2;
-        } else {
-            color = color3;
-        }
-        
-        colors[i3] = color.r;
-        colors[i3 + 1] = color.g;
-        colors[i3 + 2] = color.b;
-        
-        sizes[i] = Math.random() * 0.1 + 0.05;
-    }
-    
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    
-    const material = new THREE.PointsMaterial({
-        size: 0.15,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: true
-    });
-    
-    photonParticles = new THREE.Points(geometry, material);
-    photonParticles.position.set(0, 0, 0);
-    scene.add(photonParticles);
-}
-
 // Update penis size based on market cap - More sensitive with longer range
 function updatePenisSize(marketCap) {
     // Extended range for more sensitivity - 0 to 100cm range

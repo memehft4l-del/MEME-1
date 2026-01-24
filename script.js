@@ -2768,6 +2768,32 @@ async function submitWalletCasino() {
     loadCasinoStats();
 }
 
+function updateLocalStats(betAmount, payoutAmount, isWin) {
+    const wageredEl = document.getElementById('totalWagered');
+    const wonEl = document.getElementById('totalWon');
+    const balanceEl = document.getElementById('casinoBalance');
+    
+    if (!wageredEl || !wonEl || !balanceEl) {
+        console.log('Stats elements not found');
+        return;
+    }
+    
+    // Get current values
+    const currentWagered = parseFloat(wageredEl.textContent.replace(' SOL', '')) || 0;
+    const currentWon = parseFloat(wonEl.textContent.replace(' SOL', '')) || 0;
+    
+    // Update values
+    const newWagered = currentWagered + betAmount;
+    const newWon = isWin ? currentWon + payoutAmount : currentWon;
+    const newBalance = newWon - newWagered;
+    
+    console.log('Updating local stats:', { newWagered, newWon, newBalance });
+    
+    wageredEl.textContent = newWagered.toFixed(4) + ' SOL';
+    wonEl.textContent = newWon.toFixed(4) + ' SOL';
+    balanceEl.textContent = newBalance.toFixed(4) + ' SOL';
+}
+
 async function loadCasinoStats() {
     if (!casinoState.walletAddress || !supabaseClient) {
         console.log('Cannot load stats - missing wallet or supabase client');
@@ -2787,9 +2813,7 @@ async function loadCasinoStats() {
         
         if (error) {
             console.error('Error loading casino stats:', error);
-            document.getElementById('totalWagered').textContent = '0.0000 SOL';
-            document.getElementById('totalWon').textContent = '0.0000 SOL';
-            return;
+            return; // Don't reset to 0 if there's an error, keep current values
         }
         
         if (data) {
@@ -2815,16 +2839,10 @@ async function loadCasinoStats() {
                 balanceEl.textContent = balance.toFixed(4) + ' SOL';
             }
         } else {
-            console.log('No data found for wallet');
-            document.getElementById('totalWagered').textContent = '0.0000 SOL';
-            document.getElementById('totalWon').textContent = '0.0000 SOL';
+            console.log('No data found for wallet - keeping current display values');
         }
     } catch (error) {
         console.error('Error loading casino stats:', error);
-        const wageredEl = document.getElementById('totalWagered');
-        const wonEl = document.getElementById('totalWon');
-        if (wageredEl) wageredEl.textContent = '0.0000 SOL';
-        if (wonEl) wonEl.textContent = '0.0000 SOL';
     }
 }
 
@@ -3250,10 +3268,14 @@ async function processBet(transaction) {
             statusEl.className = 'bet-status ' + (isWin ? 'success' : 'error');
         }
         
-        // Reload stats after a short delay to ensure DB write completes
+        // Immediately update stats locally (optimistic update)
+        updateLocalStats(BET_AMOUNT, payoutAmount, isWin);
+        
+        // Reload stats from database after a delay to ensure DB write completes
         setTimeout(() => {
+            console.log('Reloading stats from database...');
             loadCasinoStats();
-        }, 500);
+        }, 1000);
         
     } catch (error) {
         console.error('Error processing bet:', error);

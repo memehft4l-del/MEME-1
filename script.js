@@ -3242,8 +3242,10 @@ async function processBet(transaction) {
             statusEl.className = 'bet-status ' + (isWin ? 'success' : 'error');
         }
         
-        // Reload stats
-        loadCasinoStats();
+        // Reload stats after a short delay to ensure DB write completes
+        setTimeout(() => {
+            loadCasinoStats();
+        }, 500);
         
     } catch (error) {
         console.error('Error processing bet:', error);

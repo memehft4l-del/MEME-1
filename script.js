@@ -2268,6 +2268,8 @@ function initGameSelection() {
     // Start with casino game active
     if (casinoBtn && casinoGame) {
         casinoBtn.classList.add('active');
+        if (game1Btn) game1Btn.classList.remove('active');
+        if (game2Btn) game2Btn.classList.remove('active');
         casinoGame.style.display = 'block';
         if (reactionGame) reactionGame.style.display = 'none';
         if (memoryGame) memoryGame.style.display = 'none';

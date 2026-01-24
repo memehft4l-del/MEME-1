@@ -9,6 +9,8 @@ let updateInterval;
 let particleSystem = null;
 let raycaster = null;
 let mouse = new THREE.Vector2();
+let hasRealData = false; // Track if we've successfully fetched real data
+let realDataUpdateInterval = null;
 
 // Easter egg variables
 let konamiCode = [];
@@ -447,13 +449,22 @@ function startMarketCapUpdates() {
         }
     }, 2000);
     
-    // Try to fetch real data every 5 seconds (simulation keeps running in parallel)
-    setInterval(async () => {
+    // Try to fetch real data every 5 seconds
+    // Only continue simulation if real data fetch fails
+    realDataUpdateInterval = setInterval(async () => {
         try {
-            await fetchTokenData();
+            const success = await fetchTokenData();
+            // If real data fetch fails, re-enable simulation mode
+            if (!success && !hasRealData && !updateInterval) {
+                console.log('⚠️ Real data fetch failed, re-enabling simulation mode');
+                startSimulationMode();
+            }
         } catch (error) {
             console.error('⚠️ Periodic fetch error:', error);
-            // Simulation mode continues regardless
+            // If we don't have real data yet, keep simulation running
+            if (!hasRealData && !updateInterval) {
+                startSimulationMode();
+            }
         }
     }, 5000);
 }
@@ -481,6 +492,16 @@ async function fetchTokenData() {
             currentMarketCap = (tokenSupply * tokenPrice) || 0;
             
             console.log('Real data fetched - MC:', currentMarketCap, 'Price:', tokenPrice);
+            
+            // Mark that we have real data - this will stop simulation updates
+            hasRealData = true;
+            
+            // Stop simulation mode interval if it's running
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+                console.log('✅ Stopped simulation mode - using real data');
+            }
             
             // Update UI with real data
             updateMarketCapDisplay(currentMarketCap);
@@ -645,6 +666,12 @@ function startSimulationMode() {
 
 function updateMarketCap() {
     try {
+        // Don't update if we have real data - let the real API handle updates
+        if (hasRealData) {
+            console.log('⏭️ Skipping simulation update - real data available');
+            return;
+        }
+        
         console.log('📊 updateMarketCap() called at', new Date().toLocaleTimeString());
         
         // Simulate market cap (fallback when API is not available)

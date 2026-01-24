@@ -2722,8 +2722,27 @@ function initCasinoGame() {
         });
     }
     
-    // Load casino stats
-    loadCasinoStats();
+    // Restore wallet address from localStorage if it exists
+    const savedWallet = localStorage.getItem('casino_wallet_address');
+    if (savedWallet && isValidSolanaAddress(savedWallet)) {
+        console.log('Restoring saved wallet address:', savedWallet);
+        casinoState.walletAddress = savedWallet;
+        
+        // Update UI to show wallet is connected
+        document.getElementById('walletStatus3').style.display = 'none';
+        document.getElementById('walletConnected3').style.display = 'block';
+        document.getElementById('walletAddress3').textContent = 
+            savedWallet.substring(0, 8) + '...' + savedWallet.substring(savedWallet.length - 8);
+        document.getElementById('casinoArea').style.display = 'block';
+        
+        // Load stats for saved wallet after a short delay
+        setTimeout(() => {
+            loadCasinoStats();
+        }, 500);
+    } else {
+        // Load casino stats (will be empty if no wallet)
+        loadCasinoStats();
+    }
 }
 
 async function submitWalletCasino() {

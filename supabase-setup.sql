@@ -122,54 +122,23 @@ FROM game_winners
 GROUP BY wallet_address
 ORDER BY highest_level DESC, best_score DESC, last_claimed ASC;
 
--- Create casino_bets table to track aggregated casino stats per wallet
-CREATE TABLE IF NOT EXISTS casino_bets (
-    wallet_address TEXT PRIMARY KEY,
-    total_bets INTEGER DEFAULT 0,
-    total_wagered NUMERIC(20, 9) DEFAULT 0,
-    total_wins INTEGER DEFAULT 0,
-    total_losses INTEGER DEFAULT 0,
-    total_won NUMERIC(20, 9) DEFAULT 0,
-    total_paid_out NUMERIC(20, 9) DEFAULT 0,
-    house_fee_collected NUMERIC(20, 9) DEFAULT 0,
-    last_bet_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Drop existing casino_bets table if it exists (to recreate with correct structure)
+DROP TABLE IF EXISTS casino_bets CASCADE;
 
--- Add missing columns if they don't exist (for existing tables)
-DO $$ 
-BEGIN
-    -- Add total_wagered if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name='casino_bets' AND column_name='total_wagered') THEN
-        ALTER TABLE casino_bets ADD COLUMN total_wagered NUMERIC(20, 9) DEFAULT 0;
-    END IF;
-    
-    -- Add total_won if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name='casino_bets' AND column_name='total_won') THEN
-        ALTER TABLE casino_bets ADD COLUMN total_won NUMERIC(20, 9) DEFAULT 0;
-    END IF;
-    
-    -- Add total_paid_out if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name='casino_bets' AND column_name='total_paid_out') THEN
-        ALTER TABLE casino_bets ADD COLUMN total_paid_out NUMERIC(20, 9) DEFAULT 0;
-    END IF;
-    
-    -- Add house_fee_collected if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name='casino_bets' AND column_name='house_fee_collected') THEN
-        ALTER TABLE casino_bets ADD COLUMN house_fee_collected NUMERIC(20, 9) DEFAULT 0;
-    END IF;
-    
-    -- Add last_bet_at if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name='casino_bets' AND column_name='last_bet_at') THEN
-        ALTER TABLE casino_bets ADD COLUMN last_bet_at TIMESTAMP WITH TIME ZONE;
-    END IF;
-END $$;
+-- Create casino_bets table to track aggregated casino stats per wallet
+CREATE TABLE casino_bets (
+    wallet_address TEXT PRIMARY KEY,
+    total_bets INTEGER DEFAULT 0 NOT NULL,
+    total_wagered NUMERIC(20, 9) DEFAULT 0 NOT NULL,
+    total_wins INTEGER DEFAULT 0 NOT NULL,
+    total_losses INTEGER DEFAULT 0 NOT NULL,
+    total_won NUMERIC(20, 9) DEFAULT 0 NOT NULL,
+    total_paid_out NUMERIC(20, 9) DEFAULT 0 NOT NULL,
+    house_fee_collected NUMERIC(20, 9) DEFAULT 0 NOT NULL,
+    last_bet_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
 
 -- Enable RLS on casino_bets
 ALTER TABLE casino_bets ENABLE ROW LEVEL SECURITY;

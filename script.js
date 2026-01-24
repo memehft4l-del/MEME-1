@@ -3074,47 +3074,70 @@ async function processBet(transaction) {
         // Update aggregated stats in Supabase (upsert)
         if (supabaseClient) {
             // First, try to get existing record
-            const { data: existing } = await supabaseClient
+            const { data: existing, error: selectError } = await supabaseClient
                 .from('casino_bets')
                 .select('*')
                 .eq('wallet_address', casinoState.walletAddress)
-                .single();
+                .maybeSingle();
+            
+            if (selectError) {
+                console.error('Error checking existing bet:', selectError);
+            }
             
             if (existing) {
                 // Update existing record
+                const updateData = {
+                    total_bets: (existing.total_bets || 0) + 1,
+                    total_wagered: parseFloat(existing.total_wagered || 0) + BET_AMOUNT,
+                    total_wins: isWin ? (existing.total_wins || 0) + 1 : (existing.total_wins || 0),
+                    total_losses: isWin ? (existing.total_losses || 0) : (existing.total_losses || 0) + 1,
+                    total_won: isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0),
+                    total_paid_out: isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0),
+                    last_bet_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                // Only add house_fee_collected if column exists (for backward compatibility)
+                if (existing.house_fee_collected !== undefined) {
+                    updateData.house_fee_collected = parseFloat(existing.house_fee_collected || 0) + houseFee;
+                }
+                
                 const { error } = await supabaseClient
                     .from('casino_bets')
-                    .update({
-                        total_bets: (existing.total_bets || 0) + 1,
-                        total_wagered: parseFloat(existing.total_wagered || 0) + BET_AMOUNT,
-                        total_wins: isWin ? (existing.total_wins || 0) + 1 : (existing.total_wins || 0),
-                        total_losses: isWin ? (existing.total_losses || 0) : (existing.total_losses || 0) + 1,
-                        total_won: isWin ? parseFloat(existing.total_won || 0) + winAmount : parseFloat(existing.total_won || 0),
-                        total_paid_out: isWin ? parseFloat(existing.total_paid_out || 0) + payoutAmount : parseFloat(existing.total_paid_out || 0),
-                        house_fee_collected: parseFloat(existing.house_fee_collected || 0) + houseFee,
-                        last_bet_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    })
+                    .update(updateData)
                     .eq('wallet_address', casinoState.walletAddress);
                 
                 if (error) throw error;
             } else {
                 // Insert new record
-                const { error } = await supabaseClient
-                    .from('casino_bets')
-                    .insert({
-                        wallet_address: casinoState.walletAddress,
-                        total_bets: 1,
-                        total_wagered: BET_AMOUNT,
-                        total_wins: isWin ? 1 : 0,
-                        total_losses: isWin ? 0 : 1,
-                        total_won: winAmount,
-                        total_paid_out: payoutAmount,
-                        house_fee_collected: houseFee,
-                        last_bet_at: new Date().toISOString()
-                    });
+                const insertData = {
+                    wallet_address: casinoState.walletAddress,
+                    total_bets: 1,
+                    total_wagered: BET_AMOUNT,
+                    total_wins: isWin ? 1 : 0,
+                    total_losses: isWin ? 0 : 1,
+                    total_won: winAmount,
+                    total_paid_out: payoutAmount,
+                    last_bet_at: new Date().toISOString()
+                };
                 
-                if (error) throw error;
+                // Only add house_fee_collected if we know the column exists
+                // Try to insert with it, but catch error if column doesn't exist
+                const { error: insertError } = await supabaseClient
+                    .from('casino_bets')
+                    .insert(insertData);
+                
+                if (insertError) {
+                    // If error is about missing column, try without it
+                    if (insertError.message && insertError.message.includes('house_fee_collected')) {
+                        const { error: retryError } = await supabaseClient
+                            .from('casino_bets')
+                            .insert(insertData);
+                        if (retryError) throw retryError;
+                    } else {
+                        throw insertError;
+                    }
+                }
             }
         }
         
